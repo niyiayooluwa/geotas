@@ -19,6 +19,7 @@ func NewRouter(queries *db.Queries) *chi.Mux {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("GEOTAS is alive"))
 	})
+	router.Post("/auth/register", RegisterHandler(queries))
 
 	return router
 }
