@@ -6,5 +6,5 @@ CREATE TABLE IF NOT EXISTS users (
     last_name TEXT NOT NULL,
     matriculation_number TEXT NOT NULL UNIQUE,
     department TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 )
