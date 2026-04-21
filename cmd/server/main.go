@@ -9,47 +9,38 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
+	"github.com/niyiayooluwa/geotas/internal/db"
 	"github.com/niyiayooluwa/geotas/internal/handler"
 )
 
 func main() {
-	// Load .env file into the environment
-	// If it fails, kill the program — no point running without config
+	// load .env
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
-	// Read the database URL from .env
+	// connect to Neon
 	var dbURL string = os.Getenv("DATABASE_URL")
-
-	// Open a connection to Neon using that URL
-	// pgx.Connect returns two things — the connection and an error
 	conn, err := pgx.Connect(context.Background(), dbURL)
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v\n", err)
 	}
-
-	// defer means "run this when main() exits"
-	// ensures the DB connection is always closed cleanly
 	defer conn.Close(context.Background())
 
-	// Ping confirms the connection is actually alive
-	// Connect succeeding doesn't guarantee the DB is reachable
+	// confirm connection is alive
 	if err := conn.Ping(context.Background()); err != nil {
 		log.Fatalf("Database ping failed: %v\n", err)
 	}
-
 	fmt.Println("✅ Connected to Neon successfully")
 
-	var router = handler.NewRouter()
+	// create queries object — this is what talks to the DB
+	var queries *db.Queries = db.New(conn)
 
-	// Read port from .env
+	// pass queries into the router so handlers can use it
+	var router = handler.NewRouter(queries)
+
+	// start server
 	var port string = os.Getenv("PORT")
 	fmt.Printf("🚀 GEOTAS server running on port %s\n", port)
-
-	// Start the HTTP server on the given port
-	// pass the router so it handles all incoming requests
-	// previously we passed nil here — that's why /health returned 404
-	// nil meant no router, no routes, nothing to handle requests
 	log.Fatal(http.ListenAndServe(":"+port, router))
 }

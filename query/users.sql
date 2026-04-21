@@ -4,7 +4,7 @@ INSERT INTO users (
     password_hash,
     first_name,
     last_name,
-    matric_number,
+    matriculation_number,
     department
 ) VALUES (
     $1, $2, $3, $4, $5, $6
