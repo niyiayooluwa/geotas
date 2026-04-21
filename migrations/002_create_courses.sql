@@ -6,3 +6,5 @@ CREATE TABLE IF NOT EXISTS courses (
     department TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 )
+
+CREATE INDEX idx_courses_owner_id ON courses(owner_id);
