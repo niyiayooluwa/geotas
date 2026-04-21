@@ -35,6 +35,7 @@ func RegisterHandler(queries *db.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		//decode the JSON body into a RegisterRequest struct
 		var req RegisterRequest
+		
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
