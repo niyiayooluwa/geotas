@@ -4,22 +4,24 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/niyiayooluwa/geotas/internal/db"
 	"github.com/niyiayooluwa/geotas/internal/middleware"
+	"github.com/niyiayooluwa/geotas/internal/service"
 )
 
+type UserHandler struct {
+	authService *service.AuthService
+}
 
+func NewUserHandler(authService *service.AuthService) *UserHandler {
+	return &UserHandler{authService: authService}
+}
 
-func MeHandler(queries *db.Queries) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
+	var userID string = r.Context().Value(middleware.UserIDKey).(string)
 
-		// get user_id from context (populated by AuthMiddleware)
-		var userID string = r.Context().Value(middleware.UserIDKey).(string)
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{
-			"user_id": userID,
-		})
-	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"user_id": userID,
+	})
 }
