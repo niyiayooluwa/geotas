@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/niyiayooluwa/geotas/internal/db"
+	"github.com/niyiayooluwa/geotas/internal/model"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -47,13 +48,6 @@ type LoginResponse struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Email     string `json:"email"`
-}
-
-// Claims defines what lives inside the JWT
-type Claims struct {
-	UserID string `json:"user_id"`
-	Email  string `json:"email"`
-	jwt.RegisteredClaims
 }
 
 func RegisterHandler(queries *db.Queries) http.HandlerFunc {
@@ -141,7 +135,7 @@ func LoginHandler(queries *db.Queries) http.HandlerFunc {
 		}
 
 		// build JWT claims — what goes inside the token
-		var claims Claims = Claims{
+		var claims model.Claims = model.Claims{
 			UserID: user.ID.String(),
 			Email:  user.Email,
 			RegisteredClaims: jwt.RegisteredClaims{
