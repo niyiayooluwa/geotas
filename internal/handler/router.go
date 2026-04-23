@@ -22,6 +22,10 @@ func NewRouter(queries *db.Queries) *chi.Mux {
 	var authService *service.AuthService = service.NewAuthService(userRepo)
 	var authHandler *AuthHandler = NewAuthHandler(authService)
 	var userHandler *UserHandler = NewUserHandler(authService)
+	// wire up course dependencies
+	var courseRepo *repository.CourseRepository = repository.NewCourseRepository(queries)
+	var courseService *service.CourseService = service.NewCourseService(courseRepo)
+	var courseHandler *CourseHandler = NewCourseHandler(courseService)
 
 	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -36,6 +40,11 @@ func NewRouter(queries *db.Queries) *chi.Mux {
 	router.Group(func(r chi.Router) {
 		r.Use(middleware.AuthMiddleWare)
 		r.Get("/me", userHandler.Me)
+
+		// course routes
+		r.Post("/courses", courseHandler.CreateCourse)
+		r.Post("/courses/join", courseHandler.JoinCourse)
+		r.Get("/courses", courseHandler.GetMyCourses)
 	})
 
 	return router
