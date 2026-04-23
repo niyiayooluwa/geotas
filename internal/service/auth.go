@@ -28,32 +28,32 @@ func NewAuthService(userRepo *repository.UserRepository) *AuthService {
 // validates the register request fields
 func (s *AuthService) ValidateRegisterRequest(req model.RegisterRequest) error {
 	if req.FirstName == "" || req.LastName == "" {
-		return errors.New("first name and last name are required")
+		return errors.New("First name and last name are required")
 	}
 
 	var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 	if !emailRegex.MatchString(req.Email) {
-		return errors.New("invalid email address")
+		return errors.New("Invalid email address")
 	}
 
 	if len(req.Password) < 8 {
-		return errors.New("password must be at least 8 characters")
+		return errors.New("Password must be at least 8 characters")
 	}
 
 	if !regexp.MustCompile(`[A-Z]`).MatchString(req.Password) {
-		return errors.New("password must contain at least one uppercase letter")
+		return errors.New("Password must contain at least one uppercase letter")
 	}
 
 	if !regexp.MustCompile(`[a-z]`).MatchString(req.Password) {
-		return errors.New("password must contain at least one lowercase letter")
+		return errors.New("Password must contain at least one lowercase letter")
 	}
 
 	if !regexp.MustCompile(`[0-9]`).MatchString(req.Password) {
-		return errors.New("password must contain at least one number")
+		return errors.New("Password must contain at least one number")
 	}
 
 	if !regexp.MustCompile(`[^a-zA-Z0-9]`).MatchString(req.Password) {
-		return errors.New("password must contain at least one special character")
+		return errors.New("Password must contain at least one special character")
 	}
 
 	return nil
@@ -69,7 +69,7 @@ func (s *AuthService) Register(ctx context.Context, req model.RegisterRequest) (
 	// hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return model.RegisterResponse{}, errors.New("could not hash password")
+		return model.RegisterResponse{}, errors.New("Could not hash password")
 	}
 
 	// insert into DB
@@ -88,9 +88,9 @@ func (s *AuthService) Register(ctx context.Context, req model.RegisterRequest) (
 		// detect duplicate email or matric number
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return model.RegisterResponse{}, errors.New("email or matric number already exists")
+			return model.RegisterResponse{}, errors.New("Email or matric number already exists")
 		}
-		return model.RegisterResponse{}, errors.New("could not create user")
+		return model.RegisterResponse{}, errors.New("Could not create user")
 	}
 
 	// build and return response
@@ -110,7 +110,7 @@ func (s *AuthService) Login(ctx context.Context, req model.LoginRequest) (model.
 	// fetch user by email
 	user, err := s.userRepo.GetUserByEmail(ctx, req.Email)
 	if err != nil {
-		return model.LoginResponse{}, errors.New("invalid credentials")
+		return model.LoginResponse{}, errors.New("Invalid credentials")
 	}
 
 	// compare password with stored hash
@@ -118,7 +118,7 @@ func (s *AuthService) Login(ctx context.Context, req model.LoginRequest) (model.
 		[]byte(user.PasswordHash),
 		[]byte(req.Password),
 	); err != nil {
-		return model.LoginResponse{}, errors.New("invalid credentials")
+		return model.LoginResponse{}, errors.New("Invalid credentials")
 	}
 
 	// build JWT claims
@@ -136,7 +136,7 @@ func (s *AuthService) Login(ctx context.Context, req model.LoginRequest) (model.
 	var secret string = os.Getenv("JWT_SECRET")
 	signedToken, err := token.SignedString([]byte(secret))
 	if err != nil {
-		return model.LoginResponse{}, errors.New("could not generate token")
+		return model.LoginResponse{}, errors.New("Could not generate token")
 	}
 
 	return model.LoginResponse{
@@ -152,7 +152,7 @@ func (s *AuthService) Login(ctx context.Context, req model.LoginRequest) (model.
 func (s *AuthService) GetUserByID(ctx context.Context, userID string) (db.User, error) {
 	var uuid pgtype.UUID
 	if err := uuid.Scan(userID); err != nil {
-		return db.User{}, errors.New("invalid user id")
+		return db.User{}, errors.New("Invalid user id")
 	}
 	return s.userRepo.GetUserByID(ctx, uuid)
 }
