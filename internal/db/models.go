@@ -29,6 +29,7 @@ type Course struct {
 	Code       string
 	Department pgtype.Text
 	CreatedAt  pgtype.Timestamptz
+	InviteCode string
 }
 
 type CourseMember struct {

@@ -16,11 +16,12 @@ INSERT INTO courses (
     owner_id,
     title,
     code,
-    department
+    department,
+    invite_code
 ) VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3, $4, $5
 )
-RETURNING id, owner_id, title, code, department, created_at
+RETURNING id, owner_id, title, code, department, created_at, invite_code
 `
 
 type CreateCourseParams struct {
@@ -28,6 +29,7 @@ type CreateCourseParams struct {
 	Title      string
 	Code       string
 	Department pgtype.Text
+	InviteCode string
 }
 
 func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Course, error) {
@@ -36,6 +38,7 @@ func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Cou
 		arg.Title,
 		arg.Code,
 		arg.Department,
+		arg.InviteCode,
 	)
 	var i Course
 	err := row.Scan(
@@ -45,12 +48,13 @@ func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Cou
 		&i.Code,
 		&i.Department,
 		&i.CreatedAt,
+		&i.InviteCode,
 	)
 	return i, err
 }
 
 const getCourseByCode = `-- name: GetCourseByCode :one
-SELECT id, owner_id, title, code, department, created_at FROM courses
+SELECT id, owner_id, title, code, department, created_at, invite_code FROM courses
 WHERE code = $1
 `
 
@@ -64,12 +68,13 @@ func (q *Queries) GetCourseByCode(ctx context.Context, code string) (Course, err
 		&i.Code,
 		&i.Department,
 		&i.CreatedAt,
+		&i.InviteCode,
 	)
 	return i, err
 }
 
 const getCourseByID = `-- name: GetCourseByID :one
-SELECT id, owner_id, title, code, department, created_at FROM courses
+SELECT id, owner_id, title, code, department, created_at, invite_code FROM courses
 WHERE id = $1
 `
 
@@ -83,12 +88,33 @@ func (q *Queries) GetCourseByID(ctx context.Context, id pgtype.UUID) (Course, er
 		&i.Code,
 		&i.Department,
 		&i.CreatedAt,
+		&i.InviteCode,
+	)
+	return i, err
+}
+
+const getCourseByInviteCode = `-- name: GetCourseByInviteCode :one
+SELECT id, owner_id, title, code, department, created_at, invite_code FROM courses
+WHERE invite_code = $1
+`
+
+func (q *Queries) GetCourseByInviteCode(ctx context.Context, inviteCode string) (Course, error) {
+	row := q.db.QueryRow(ctx, getCourseByInviteCode, inviteCode)
+	var i Course
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Title,
+		&i.Code,
+		&i.Department,
+		&i.CreatedAt,
+		&i.InviteCode,
 	)
 	return i, err
 }
 
 const getCoursesByOwner = `-- name: GetCoursesByOwner :many
-SELECT id, owner_id, title, code, department, created_at FROM courses
+SELECT id, owner_id, title, code, department, created_at, invite_code FROM courses
 WHERE owner_id = $1
 `
 
@@ -108,6 +134,7 @@ func (q *Queries) GetCoursesByOwner(ctx context.Context, ownerID pgtype.UUID) ([
 			&i.Code,
 			&i.Department,
 			&i.CreatedAt,
+			&i.InviteCode,
 		); err != nil {
 			return nil, err
 		}

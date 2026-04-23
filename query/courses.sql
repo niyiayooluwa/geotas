@@ -3,9 +3,10 @@ INSERT INTO courses (
     owner_id,
     title,
     code,
-    department
+    department,
+    invite_code
 ) VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3, $4, $5
 )
 RETURNING *;
 
@@ -20,3 +21,7 @@ WHERE owner_id = $1;
 -- name: GetCourseByCode :one
 SELECT * FROM courses
 WHERE code = $1;
+
+-- name: GetCourseByInviteCode :one
+SELECT * FROM courses
+WHERE invite_code = $1;
