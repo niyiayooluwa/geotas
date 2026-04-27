@@ -50,3 +50,7 @@ func (r *CourseRepository) GetCourseMember(ctx context.Context, params db.GetCou
 func (r *CourseRepository) GetCourseByInviteCode(ctx context.Context, inviteCode string) (db.Course, error) {
 	return r.queries.GetCourseByInviteCode(ctx, inviteCode)
 }
+
+func (r *CourseRepository) DeleteCourse(ctx context.Context, id pgtype.UUID) error {
+	return r.queries.DeleteCourse(ctx, id)
+}

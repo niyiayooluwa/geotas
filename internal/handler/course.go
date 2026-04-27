@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/niyiayooluwa/geotas/internal/middleware"
 	"github.com/niyiayooluwa/geotas/internal/model"
 	"github.com/niyiayooluwa/geotas/internal/service"
@@ -72,4 +73,16 @@ func (h *CourseHandler) GetMyCourses(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
+}
+
+func (h *CourseHandler) DeleteCourse(w http.ResponseWriter, r *http.Request) {
+	var userID string = r.Context().Value(middleware.UserIDKey).(string)
+	var courseID string = chi.URLParam(r, "id")
+
+	if err := h.courseService.DeleteCourse(r.Context(), userID, courseID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

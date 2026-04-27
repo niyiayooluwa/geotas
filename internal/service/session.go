@@ -168,3 +168,27 @@ func buildSessionResponse(session db.Session) model.SessionResponse {
 		ClosedAt:       closedAt,
 	}
 }
+
+func (s *SessionService) DeleteSession(ctx context.Context, userID string, sessionID string) error {
+	parsedSessionID, err := parseUUID(sessionID)
+	if err != nil {
+		return errors.New("Invalid session_id")
+	}
+
+	parsedUserID, err := parseUUID(userID)
+	if err != nil {
+		return err
+	}
+
+	// fetch session to confirm ownership
+	session, err := s.sessionRepo.GetSessionByID(ctx, parsedSessionID)
+	if err != nil {
+		return errors.New("Session not found")
+	}
+
+	if session.CreatedBy != parsedUserID {
+		return errors.New("You do not own this session")
+	}
+
+	return s.sessionRepo.DeleteSession(ctx, parsedSessionID)
+}

@@ -171,3 +171,27 @@ func (s *CourseService) GetCoursesByOwner(ctx context.Context, userID string) ([
 
 	return response, nil
 }
+
+func (s *CourseService) DeleteCourse(ctx context.Context, userID string, courseID string) error {
+	parsedCourseID, err := parseUUID(courseID)
+	if err != nil {
+		return errors.New("Invalid course_id")
+	}
+
+	parsedUserID, err := parseUUID(userID)
+	if err != nil {
+		return err
+	}
+
+	// fetch course to confirm ownership
+	course, err := s.courseRepo.GetCourseByID(ctx, parsedCourseID)
+	if err != nil {
+		return errors.New("Course not found")
+	}
+
+	if course.OwnerID != parsedUserID {
+		return errors.New("You do not own this course")
+	}
+
+	return s.courseRepo.DeleteCourse(ctx, parsedCourseID)
+}

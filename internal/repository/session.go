@@ -34,3 +34,7 @@ func (r *SessionRepository) GetActiveSessionByCourse(ctx context.Context, course
 func (r *SessionRepository) CloseSession(ctx context.Context, id pgtype.UUID) (db.Session, error) {
 	return r.queries.CloseSession(ctx, id)
 }
+
+func (r *SessionRepository) DeleteSession(ctx context.Context, id pgtype.UUID) error {
+	return r.queries.DeleteSession(ctx, id)
+}
