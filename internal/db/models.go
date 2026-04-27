@@ -20,6 +20,9 @@ type AttendanceRecord struct {
 	MockLocationDetected bool
 	ConfidenceScore      float64
 	WeekNumber           int32
+	DeviceID             pgtype.Text
+	DeviceModel          pgtype.Text
+	OsVersion            pgtype.Text
 }
 
 type Course struct {
