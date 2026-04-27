@@ -29,8 +29,10 @@ func NewRouter(queries *db.Queries) *chi.Mux {
 	var courseHandler *CourseHandler = NewCourseHandler(courseService)
 
 	// wire up session dependencies
+	var qrRepo *repository.QRTokenRepository = repository.NewQRTokenRepository(queries)
+	var qrManager *service.QRRotationManager = service.NewQRRotationManager(qrRepo)
 	var sessionRepo *repository.SessionRepository = repository.NewSessionRepository(queries)
-	var sessionService *service.SessionService = service.NewSessionService(sessionRepo, courseRepo)
+	var sessionService *service.SessionService = service.NewSessionService(sessionRepo, courseRepo, qrManager)
 	var sessionHandler *SessionHandler = NewSessionHandler(sessionService)
 
 	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {

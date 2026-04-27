@@ -13,12 +13,14 @@ import (
 type SessionService struct {
 	sessionRepo *repository.SessionRepository
 	courseRepo  *repository.CourseRepository
+	qrManager   *QRRotationManager
 }
 
-func NewSessionService(sessionRepo *repository.SessionRepository, courseRepo *repository.CourseRepository) *SessionService {
+func NewSessionService(sessionRepo *repository.SessionRepository, courseRepo *repository.CourseRepository, qrManager *QRRotationManager) *SessionService {
 	return &SessionService{
 		sessionRepo: sessionRepo,
 		courseRepo:  courseRepo,
+		qrManager:   qrManager,
 	}
 }
 
@@ -87,6 +89,8 @@ func (s *SessionService) CreateSession(ctx context.Context, userID string, req m
 		return model.SessionResponse{}, errors.New("could not create session")
 	}
 
+	s.qrManager.StartRotation(session.ID.String(), session.QrRotationSecs)
+
 	return buildSessionResponse(session), nil
 }
 
@@ -123,6 +127,8 @@ func (s *SessionService) CloseSession(ctx context.Context, userID string, sessio
 	if err != nil {
 		return model.SessionResponse{}, errors.New("could not close session")
 	}
+
+	s.qrManager.StopRotation(closed.ID.String())
 
 	return buildSessionResponse(closed), nil
 }
@@ -189,6 +195,9 @@ func (s *SessionService) DeleteSession(ctx context.Context, userID string, sessi
 	if session.CreatedBy != parsedUserID {
 		return errors.New("You do not own this session")
 	}
+
+	// stop rotation if session was active
+	s.qrManager.StopRotation(sessionID)
 
 	return s.sessionRepo.DeleteSession(ctx, parsedSessionID)
 }
