@@ -32,3 +32,7 @@ UPDATE sessions
 SET status = 'closed', closed_at = NOW()
 WHERE id = $1
 RETURNING *;
+
+-- name: DeleteSession :exec
+DELETE FROM sessions
+WHERE id = $1;

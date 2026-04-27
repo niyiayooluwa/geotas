@@ -25,3 +25,7 @@ WHERE code = $1;
 -- name: GetCourseByInviteCode :one
 SELECT * FROM courses
 WHERE invite_code = $1;
+
+-- name: DeleteCourse :exec
+DELETE FROM courses
+WHERE id = $1;

@@ -95,6 +95,16 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 	return i, err
 }
 
+const deleteSession = `-- name: DeleteSession :exec
+DELETE FROM sessions
+WHERE id = $1
+`
+
+func (q *Queries) DeleteSession(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteSession, id)
+	return err
+}
+
 const getActiveSessionByCourse = `-- name: GetActiveSessionByCourse :one
 SELECT id, course_id, created_by, title, week_number, latitude, longitude, radius_meters, qr_rotation_secs, status, started_at, closed_at FROM sessions
 WHERE course_id = $1 AND status = 'active'
