@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/niyiayooluwa/geotas/internal/db"
 	"github.com/niyiayooluwa/geotas/internal/handler"
@@ -21,11 +21,11 @@ func main() {
 
 	// connect to Neon
 	var dbURL string = os.Getenv("DATABASE_URL")
-	conn, err := pgx.Connect(context.Background(), dbURL)
+	conn, err := pgxpool.New(context.Background(), dbURL)
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v\n", err)
 	}
-	defer conn.Close(context.Background())
+	defer conn.Close()
 
 	// confirm connection is alive
 	if err := conn.Ping(context.Background()); err != nil {
