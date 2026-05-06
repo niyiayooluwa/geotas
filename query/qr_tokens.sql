@@ -24,3 +24,11 @@ UPDATE qr_tokens
 SET used = true
 WHERE session_id = $1
 AND used = false;
+
+-- name: GetLatestQRTokenBySession :one
+SELECT * FROM qr_tokens
+WHERE session_id = $1
+AND used = false
+AND expires_at > NOW()
+ORDER BY issued_at DESC
+LIMIT 1;

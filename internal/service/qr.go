@@ -107,8 +107,11 @@ func (m *QRRotationManager) GetCurrentToken(sessionID string) (string, error) {
 		return "", fmt.Errorf("invalid session id")
 	}
 
-	// we generate a fresh token based on current time
-	// this is what the lecturer's dashboard displays
-	var token string = generateQRToken(sessionID, time.Now().Truncate(40*time.Second))
-	return token, nil
+	// fetch from DB to ensure single source of truth
+	token, err := m.qrRepo.GetLatestQRTokenBySession(context.Background(), sessionUUID)
+	if err != nil {
+		return "", fmt.Errorf("no active token found for session")
+	}
+
+	return token.Token, nil
 }

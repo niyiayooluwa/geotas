@@ -175,6 +175,31 @@ func buildSessionResponse(session db.Session) model.SessionResponse {
 	}
 }
 
+func (s *SessionService) GetLiveQRToken(ctx context.Context, userID string, sessionID string) (string, error) {
+	parsedSessionID, err := parseUUID(sessionID)
+	if err != nil {
+		return "", errors.New("Invalid session_id")
+	}
+
+	parsedUserID, err := parseUUID(userID)
+	if err != nil {
+		return "", err
+	}
+
+	// fetch session to confirm ownership
+	session, err := s.sessionRepo.GetSessionByID(ctx, parsedSessionID)
+	if err != nil {
+		return "", errors.New("Session not found")
+	}
+
+	if session.CreatedBy != parsedUserID {
+		return "", errors.New("You do not own this session")
+	}
+
+	// fetch the token via the QR manager (which now uses the DB)
+	return s.qrManager.GetCurrentToken(sessionID)
+}
+
 func (s *SessionService) DeleteSession(ctx context.Context, userID string, sessionID string) error {
 	parsedSessionID, err := parseUUID(sessionID)
 	if err != nil {

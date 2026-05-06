@@ -38,3 +38,7 @@ func (r *QRTokenRepository) MarkQRTokenUsed(ctx context.Context, id pgtype.UUID)
 func (r *QRTokenRepository) InvalidatePreviousTokens(ctx context.Context, sessionID pgtype.UUID) error {
 	return r.queries.InvalidatePreviousTokens(ctx, sessionID)
 }
+
+func (r *QRTokenRepository) GetLatestQRTokenBySession(ctx context.Context, sessionID pgtype.UUID) (db.QrToken, error) {
+	return r.queries.GetLatestQRTokenBySession(ctx, sessionID)
+}

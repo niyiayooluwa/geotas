@@ -38,7 +38,6 @@ func generateOTP() (string, error) {
 }
 
 func (s *OTPService) RequestOTP(ctx context.Context, userID string, sessionID string) (model.OTPResponse, error) {
-	// parse UUIDs
 	userUUID, err := parseUUID(userID)
 	if err != nil {
 		return model.OTPResponse{}, err
@@ -49,7 +48,7 @@ func (s *OTPService) RequestOTP(ctx context.Context, userID string, sessionID st
 		return model.OTPResponse{}, errors.New("Invalid session ID")
 	}
 
-	// fetch session to confirm it's active and get course_id
+	// check session status
 	session, err := s.sessionRepo.GetSessionByID(ctx, sessionUUID)
 	if err != nil {
 		return model.OTPResponse{}, errors.New("Session not found")
@@ -59,7 +58,7 @@ func (s *OTPService) RequestOTP(ctx context.Context, userID string, sessionID st
 		return model.OTPResponse{}, errors.New("Session is not active")
 	}
 
-	// confirm student is enrolled in the course
+	// check enrollment
 	_, err = s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
 		CourseID: session.CourseID,
 		UserID:   userUUID,
@@ -68,13 +67,13 @@ func (s *OTPService) RequestOTP(ctx context.Context, userID string, sessionID st
 		return model.OTPResponse{}, errors.New("You are not enrolled in this course")
 	}
 
-	// generate 6-digit code
+	// generate code
 	code, err := generateOTP()
 	if err != nil {
-		return model.OTPResponse{}, errors.New("Failed to generate OTP")
+		return model.OTPResponse{}, err
 	}
 
-	// store in DB with 5 min expiry
+	// expiry
 	expiry := time.Now().Add(5 * time.Minute)
 	var pgExpiry pgtype.Timestamptz
 	pgExpiry.Scan(expiry)
@@ -86,7 +85,7 @@ func (s *OTPService) RequestOTP(ctx context.Context, userID string, sessionID st
 		ExpiresAt: pgExpiry,
 	})
 	if err != nil {
-		return model.OTPResponse{}, errors.New("Could not request OTP. Try again.")
+		return model.OTPResponse{}, errors.New("Failed to request OTP")
 	}
 
 	return model.OTPResponse{

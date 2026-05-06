@@ -36,7 +36,6 @@ func NewAttendanceService(
 	}
 }
 
-// calculateDistance computes the distance between two points using the Haversine formula (in meters)
 func calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
 	const earthRadius = 6371000 // meters
 	dLat := (lat2 - lat1) * (math.Pi / 180)
@@ -50,7 +49,6 @@ func calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
 	return earthRadius * c
 }
 
-// computeConfidenceScore calculates a score between 0.0 and 1.0 based on multiple trust factors
 func computeConfidenceScore(
 	dist, radius float64,
 	isQR bool,
@@ -60,37 +58,29 @@ func computeConfidenceScore(
 ) float64 {
 	var score float64 = 0.0
 
-	// 1. Geofence pass (+0.35)
 	if dist <= radius {
 		score += 0.35
 	}
 
-	// 2. Distance decay (+0.20)
-	// Closer to center = higher score, linear within radius
 	if dist <= radius {
 		score += (1.0 - (dist / radius)) * 0.20
 	}
 
-	// 3. Mark method (+0.15 for QR, +0.05 for OTP)
 	if isQR {
 		score += 0.15
 	} else {
 		score += 0.05
 	}
 
-	// 4. Scan time (+0.15)
-	// Early in session = higher, decays over 1 hour
 	elapsed := time.Since(sessionStartedAt).Minutes()
 	if elapsed < 60 {
 		score += (1.0 - (elapsed / 60.0)) * 0.15
 	}
 
-	// 5. Mock location not detected (+0.10)
 	if !mockDetected {
 		score += 0.10
 	}
 
-	// 6. No duplicate device in session (+0.05)
 	if !duplicateDevice {
 		score += 0.05
 	}
@@ -99,7 +89,6 @@ func computeConfidenceScore(
 }
 
 func (s *AttendanceService) MarkAttendanceQR(ctx context.Context, userID string, req model.MarkAttendanceQRRequest) (model.AttendanceResponse, error) {
-	// validate token
 	token, err := s.qrRepo.GetValidQRToken(ctx, req.QRToken)
 	if err != nil {
 		return model.AttendanceResponse{}, errors.New("Invalid or expired QR token")
@@ -114,7 +103,7 @@ func (s *AttendanceService) MarkAttendanceQR(ctx context.Context, userID string,
 		return model.AttendanceResponse{}, errors.New("Token does not belong to this session")
 	}
 
-	// invalidate token after use (single-use)
+	// invalidate token
 	s.qrRepo.MarkQRTokenUsed(ctx, token.ID)
 
 	return s.mark(ctx, userID, "qr", sessionUUID, req.Latitude, req.Longitude, req.DeviceID, req.DeviceModel, req.OsVersion, req.MockLocationDetected)
@@ -131,17 +120,15 @@ func (s *AttendanceService) MarkAttendanceOTP(ctx context.Context, userID string
 		return model.AttendanceResponse{}, errors.New("Invalid session ID")
 	}
 
-	// fetch valid OTP
 	otp, err := s.otpRepo.GetValidOTP(ctx, db.GetValidOTPParams{
 		UserID:    userUUID,
 		SessionID: sessionUUID,
 		Code:      req.OTPCode,
 	})
 	if err != nil {
-		return model.AttendanceResponse{}, errors.New("Invalid or expired OTP code")
+		return model.AttendanceResponse{}, errors.New("Invalid or expired OTP")
 	}
 
-	// mark OTP used
 	s.otpRepo.MarkOTPUsed(ctx, otp.ID)
 
 	return s.mark(ctx, userID, "otp", sessionUUID, req.Latitude, req.Longitude, req.DeviceID, req.DeviceModel, req.OsVersion, req.MockLocationDetected)
@@ -161,45 +148,40 @@ func (s *AttendanceService) mark(
 		return model.AttendanceResponse{}, err
 	}
 
-	// fetch session
 	session, err := s.sessionRepo.GetSessionByID(ctx, sessionUUID)
 	if err != nil {
 		return model.AttendanceResponse{}, errors.New("Session not found")
 	}
 
 	if session.Status != "active" {
-		return model.AttendanceResponse{}, errors.New("Session is no longer active")
+		return model.AttendanceResponse{}, errors.New("Session is not active")
 	}
 
-	// check enrollment
+	// enrollment check
 	_, err = s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
 		CourseID: session.CourseID,
 		UserID:   userUUID,
 	})
 	if err != nil {
-		return model.AttendanceResponse{}, errors.New("You are not enrolled in this course")
+		return model.AttendanceResponse{}, errors.New("Not enrolled in course")
 	}
 
-	// check duplicate attendance
+	// duplicate check
 	_, err = s.attendanceRepo.GetAttendanceByUserAndSession(ctx, userUUID, sessionUUID)
 	if err == nil {
-		return model.AttendanceResponse{}, errors.New("You have already marked attendance for this session")
+		return model.AttendanceResponse{}, errors.New("Attendance already marked")
 	}
 
-	// check duplicate device
+	// device check
 	duplicateDevice := false
 	_, err = s.attendanceRepo.CheckDuplicateDevice(ctx, sessionUUID, deviceID)
 	if err == nil {
 		duplicateDevice = true
 	}
 
-	// calculate geofence
 	dist := calculateDistance(lat, lon, session.Latitude, session.Longitude)
-
-	// compute confidence score
 	score := computeConfidenceScore(dist, session.RadiusMeters, method == "qr", mockDetected, duplicateDevice, session.StartedAt.Time)
 
-	// save record
 	record, err := s.attendanceRepo.CreateAttendanceRecord(ctx, db.CreateAttendanceRecordParams{
 		SessionID:            sessionUUID,
 		UserID:               userUUID,

@@ -17,23 +17,28 @@ func NewRouter(queries *db.Queries) *chi.Mux {
 	router.Use(chiMiddleware.Logger)
 	router.Use(chiMiddleware.Recoverer)
 
-	// wire up dependencies
+	// wire up repositories
 	var userRepo *repository.UserRepository = repository.NewUserRepository(queries)
+	var courseRepo *repository.CourseRepository = repository.NewCourseRepository(queries)
+	var qrRepo *repository.QRTokenRepository = repository.NewQRTokenRepository(queries)
+	var sessionRepo *repository.SessionRepository = repository.NewSessionRepository(queries)
+	var attendanceRepo *repository.AttendanceRepository = repository.NewAttendanceRepository(queries)
+	var otpRepo *repository.OTPRepository = repository.NewOTPRepository(queries)
+
+	// wire up services
 	var authService *service.AuthService = service.NewAuthService(userRepo)
+	var courseService *service.CourseService = service.NewCourseService(courseRepo)
+	var qrManager *service.QRRotationManager = service.NewQRRotationManager(qrRepo)
+	var sessionService *service.SessionService = service.NewSessionService(sessionRepo, courseRepo, qrManager)
+	var otpService *service.OTPService = service.NewOTPService(otpRepo, sessionRepo, courseRepo)
+	var attendanceService *service.AttendanceService = service.NewAttendanceService(attendanceRepo, sessionRepo, courseRepo, qrRepo, otpRepo)
+
+	// wire up handlers
 	var authHandler *AuthHandler = NewAuthHandler(authService)
 	var userHandler *UserHandler = NewUserHandler(authService)
-
-	// wire up course dependencies
-	var courseRepo *repository.CourseRepository = repository.NewCourseRepository(queries)
-	var courseService *service.CourseService = service.NewCourseService(courseRepo)
 	var courseHandler *CourseHandler = NewCourseHandler(courseService)
-
-	// wire up session dependencies
-	var qrRepo *repository.QRTokenRepository = repository.NewQRTokenRepository(queries)
-	var qrManager *service.QRRotationManager = service.NewQRRotationManager(qrRepo)
-	var sessionRepo *repository.SessionRepository = repository.NewSessionRepository(queries)
-	var sessionService *service.SessionService = service.NewSessionService(sessionRepo, courseRepo, qrManager)
 	var sessionHandler *SessionHandler = NewSessionHandler(sessionService)
+	var attendanceHandler *AttendanceHandler = NewAttendanceHandler(attendanceService, otpService)
 
 	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -60,6 +65,12 @@ func NewRouter(queries *db.Queries) *chi.Mux {
 		r.Get("/courses/{courseId}/sessions", sessionHandler.GetSessionsByCourse)
 		r.Patch("/sessions/{id}/close", sessionHandler.CloseSession)
 		r.Delete("/sessions/{id}", sessionHandler.DeleteSession)
+		r.Get("/sessions/{id}/qr-token", sessionHandler.GetLiveQRToken)
+
+		// attendance routes
+		r.Post("/attendance/qr", attendanceHandler.MarkAttendanceQR)
+		r.Post("/attendance/otp/request", attendanceHandler.RequestOTP)
+		r.Post("/attendance/otp/verify", attendanceHandler.MarkAttendanceOTP)
 
 	})
 

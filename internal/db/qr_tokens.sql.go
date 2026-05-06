@@ -42,6 +42,29 @@ func (q *Queries) CreateQRToken(ctx context.Context, arg CreateQRTokenParams) (Q
 	return i, err
 }
 
+const getLatestQRTokenBySession = `-- name: GetLatestQRTokenBySession :one
+SELECT id, session_id, token, issued_at, expires_at, used FROM qr_tokens
+WHERE session_id = $1
+AND used = false
+AND expires_at > NOW()
+ORDER BY issued_at DESC
+LIMIT 1
+`
+
+func (q *Queries) GetLatestQRTokenBySession(ctx context.Context, sessionID pgtype.UUID) (QrToken, error) {
+	row := q.db.QueryRow(ctx, getLatestQRTokenBySession, sessionID)
+	var i QrToken
+	err := row.Scan(
+		&i.ID,
+		&i.SessionID,
+		&i.Token,
+		&i.IssuedAt,
+		&i.ExpiresAt,
+		&i.Used,
+	)
+	return i, err
+}
+
 const getValidQRToken = `-- name: GetValidQRToken :one
 SELECT id, session_id, token, issued_at, expires_at, used FROM qr_tokens
 WHERE token = $1
