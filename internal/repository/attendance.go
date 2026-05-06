@@ -15,9 +15,9 @@ func NewAttendanceRepository(queries *db.Queries) *AttendanceRepository {
 	return &AttendanceRepository{queries: queries}
 }
 
-/*func (r *AttendanceRepository) CreateAttendanceRecord(ctx context.Context, params db.CreateAttendanceRecordParams) (db.CreateAttendanceRecordRow, error) {
+func (r *AttendanceRepository) CreateAttendanceRecord(ctx context.Context, params db.CreateAttendanceRecordParams) (db.AttendanceRecord, error) {
 	return r.queries.CreateAttendanceRecord(ctx, params)
-}*/
+}
 
 func (r *AttendanceRepository) GetAttendanceBySession(ctx context.Context, sessionID pgtype.UUID) ([]db.GetAttendanceBySessionRow, error) {
 	return r.queries.GetAttendanceBySession(ctx, sessionID)
