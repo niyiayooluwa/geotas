@@ -1,0 +1,425 @@
+openapi: 3.0.3
+info:
+  title: GEOTAS API
+  description: Geo-Temporal Attendance System API for university students and lecturers.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [first_name, last_name, email, password, matriculation_number]
+      properties:
+        first_name: { type: string }
+        last_name: { type: string }
+        email: { type: string, format: email }
+        password: { type: string, format: password, minLength: 8 }
+        matriculation_number: { type: string }
+        department: { type: string }
+
+    RegisterResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        first_name: { type: string }
+        last_name: { type: string }
+        email: { type: string }
+        matriculation_number: { type: string }
+        department: { type: string }
+        created_at: { type: string }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+
+    LoginResponse:
+      type: object
+      properties:
+        token: { type: string }
+        id: { type: string, format: uuid }
+        first_name: { type: string }
+        last_name: { type: string }
+        email: { type: string }
+
+    CreateCourseRequest:
+      type: object
+      required: [title, code]
+      properties:
+        title: { type: string }
+        code: { type: string }
+        department: { type: string }
+
+    CourseResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        owner_id: { type: string, format: uuid }
+        title: { type: string }
+        code: { type: string }
+        invite_code: { type: string }
+        department: { type: string }
+        created_at: { type: string }
+
+    JoinCourseRequest:
+      type: object
+      required: [invite_code]
+      properties:
+        invite_code: { type: string }
+
+    CourseMemberResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        course_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        role: { type: string, enum: [lecturer, student] }
+        joined_at: { type: string }
+
+    CreateSessionRequest:
+      type: object
+      required: [course_id, week_number, latitude, longitude, radius_meters]
+      properties:
+        course_id: { type: string, format: uuid }
+        title: { type: string }
+        week_number: { type: int32 }
+        latitude: { type: number, format: float }
+        longitude: { type: number, format: float }
+        radius_meters: { type: number, format: float }
+        qr_rotation_secs: { type: int32, default: 30 }
+
+    SessionResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        course_id: { type: string, format: uuid }
+        created_by: { type: string, format: uuid }
+        title: { type: string }
+        week_number: { type: int32 }
+        latitude: { type: number, format: float }
+        longitude: { type: number, format: float }
+        radius_meters: { type: number, format: float }
+        qr_rotation_secs: { type: int32 }
+        status: { type: string, enum: [active, closed] }
+        started_at: { type: string }
+        closed_at: { type: string }
+
+    MarkAttendanceQRRequest:
+      type: object
+      required: [session_id, qr_token, latitude, longitude, device_id]
+      properties:
+        session_id: { type: string, format: uuid }
+        qr_token: { type: string }
+        latitude: { type: number, format: float }
+        longitude: { type: number, format: float }
+        device_id: { type: string }
+        device_model: { type: string }
+        os_version: { type: string }
+        mock_location_detected: { type: boolean }
+
+    MarkAttendanceOTPRequest:
+      type: object
+      required: [session_id, otp_code, latitude, longitude, device_id]
+      properties:
+        session_id: { type: string, format: uuid }
+        otp_code: { type: string }
+        latitude: { type: number, format: float }
+        longitude: { type: number, format: float }
+        device_id: { type: string }
+        device_model: { type: string }
+        os_version: { type: string }
+        mock_location_detected: { type: boolean }
+
+    RequestOTPRequest:
+      type: object
+      required: [session_id]
+      properties:
+        session_id: { type: string, format: uuid }
+
+    OTPResponse:
+      type: object
+      properties:
+        otp_code: { type: string }
+        expires_at: { type: string }
+
+    AttendanceResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        session_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        marked_at: { type: string }
+        method: { type: string, enum: [qr, otp] }
+        week_number: { type: int32 }
+
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+
+paths:
+  /auth/register:
+    post:
+      summary: Create a new account
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RegisterResponse' }
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema: { type: string }
+
+  /auth/login:
+    post:
+      summary: Login and receive JWT
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '401':
+          description: Unauthorized
+          content:
+            text/plain:
+              schema: { type: string }
+
+  /me:
+    get:
+      summary: Get current user
+      tags: [Auth]
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id: { type: string, format: uuid }
+
+  /courses:
+    get:
+      summary: List courses you own
+      tags: [Courses]
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CourseResponse' }
+    post:
+      summary: Create a course
+      tags: [Courses]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCourseRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourseResponse' }
+
+  /courses/join:
+    post:
+      summary: Join a course via invite code
+      tags: [Courses]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/JoinCourseRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourseMemberResponse' }
+
+  /courses/{id}:
+    delete:
+      summary: Delete a course
+      tags: [Courses]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: No Content
+
+  /sessions:
+    post:
+      summary: Start an attendance session
+      tags: [Sessions]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSessionRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionResponse' }
+
+  /courses/{courseId}/sessions:
+    get:
+      summary: Get sessions for a course
+      tags: [Sessions]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SessionResponse' }
+
+  /sessions/{id}/close:
+    patch:
+      summary: Close a session
+      tags: [Sessions]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionResponse' }
+
+  /sessions/{id}:
+    delete:
+      summary: Delete a session
+      tags: [Sessions]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: No Content
+
+  /sessions/{id}/qr-token:
+    get:
+      summary: Get live QR token for lecturer dashboard
+      tags: [Sessions]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+
+  /attendance/qr:
+    post:
+      summary: Mark attendance via QR
+      tags: [Attendance]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MarkAttendanceQRRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceResponse' }
+
+  /attendance/otp/request:
+    post:
+      summary: Request an OTP
+      tags: [Attendance]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RequestOTPRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OTPResponse' }
+
+  /attendance/otp/verify:
+    post:
+      summary: Verify OTP and mark attendance
+      tags: [Attendance]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MarkAttendanceOTPRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceResponse' }
