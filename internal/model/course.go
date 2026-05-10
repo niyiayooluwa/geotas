@@ -31,3 +31,13 @@ type CourseMemberResponse struct {
 	Role     string `json:"role"`
 	JoinedAt string `json:"joined_at"`
 }
+
+type MemberCourseResponse struct {
+	ID         string `json:"id"`
+	OwnerID    string `json:"owner_id"`
+	Title      string `json:"title"`
+	Code       string `json:"code"`
+	Department string `json:"department"`
+	CreatedAt  string `json:"created_at"`
+	Role       string `json:"role"`
+}

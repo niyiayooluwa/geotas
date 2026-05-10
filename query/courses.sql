@@ -29,3 +29,17 @@ WHERE invite_code = $1;
 -- name: DeleteCourse :exec
 DELETE FROM courses
 WHERE id = $1;
+
+-- name: GetCoursesByMember :many
+SELECT 
+    c.id,
+    c.owner_id,
+    c.title,
+    c.code,
+    c.department,
+    c.invite_code,
+    c.created_at,
+    cm.role
+FROM course_members cm
+JOIN courses c ON cm.course_id = c.id
+WHERE cm.user_id = $1;

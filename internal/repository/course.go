@@ -39,7 +39,7 @@ func (r *CourseRepository) GetCourseMembersByCourse(ctx context.Context, courseI
 	return r.queries.GetCourseMembersByCourse(ctx, courseID)
 }
 
-func (r *CourseRepository) GetCoursesByMember(ctx context.Context, userID pgtype.UUID) ([]db.CourseMember, error) {
+func (r *CourseRepository) GetCoursesByMember(ctx context.Context, userID pgtype.UUID) ([]db.GetCoursesByMemberRow, error) {
 	return r.queries.GetCoursesByMember(ctx, userID)
 }
 

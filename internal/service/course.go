@@ -195,3 +195,30 @@ func (s *CourseService) DeleteCourse(ctx context.Context, userID string, courseI
 
 	return s.courseRepo.DeleteCourse(ctx, parsedCourseID)
 }
+
+func (s *CourseService) GetCoursesByMember(ctx context.Context, userID string) ([]model.MemberCourseResponse, error) {
+	parsedID, err := parseUUID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	courses, err := s.courseRepo.GetCoursesByMember(ctx, parsedID)
+	if err != nil {
+		return nil, errors.New("could not fetch courses")
+	}
+
+	var response []model.MemberCourseResponse
+	for _, c := range courses {
+		response = append(response, model.MemberCourseResponse{
+			ID:         c.ID.String(),
+			OwnerID:    c.OwnerID.String(),
+			Title:      c.Title,
+			Code:       c.Code,
+			Department: c.Department.String,
+			CreatedAt:  c.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+			Role:       c.Role,
+		})
+	}
+
+	return response, nil
+}

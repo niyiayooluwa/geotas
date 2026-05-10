@@ -123,6 +123,61 @@ func (q *Queries) GetCourseByInviteCode(ctx context.Context, inviteCode string) 
 	return i, err
 }
 
+const getCoursesByMember = `-- name: GetCoursesByMember :many
+SELECT 
+    c.id,
+    c.owner_id,
+    c.title,
+    c.code,
+    c.department,
+    c.invite_code,
+    c.created_at,
+    cm.role
+FROM course_members cm
+JOIN courses c ON cm.course_id = c.id
+WHERE cm.user_id = $1
+`
+
+type GetCoursesByMemberRow struct {
+	ID         pgtype.UUID
+	OwnerID    pgtype.UUID
+	Title      string
+	Code       string
+	Department pgtype.Text
+	InviteCode string
+	CreatedAt  pgtype.Timestamptz
+	Role       string
+}
+
+func (q *Queries) GetCoursesByMember(ctx context.Context, userID pgtype.UUID) ([]GetCoursesByMemberRow, error) {
+	rows, err := q.db.Query(ctx, getCoursesByMember, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetCoursesByMemberRow
+	for rows.Next() {
+		var i GetCoursesByMemberRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OwnerID,
+			&i.Title,
+			&i.Code,
+			&i.Department,
+			&i.InviteCode,
+			&i.CreatedAt,
+			&i.Role,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getCoursesByOwner = `-- name: GetCoursesByOwner :many
 SELECT id, owner_id, title, code, department, created_at, invite_code FROM courses
 WHERE owner_id = $1

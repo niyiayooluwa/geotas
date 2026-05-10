@@ -94,34 +94,3 @@ func (q *Queries) GetCourseMembersByCourse(ctx context.Context, courseID pgtype.
 	}
 	return items, nil
 }
-
-const getCoursesByMember = `-- name: GetCoursesByMember :many
-SELECT id, course_id, user_id, role, joined_at FROM course_members
-WHERE user_id = $1
-`
-
-func (q *Queries) GetCoursesByMember(ctx context.Context, userID pgtype.UUID) ([]CourseMember, error) {
-	rows, err := q.db.Query(ctx, getCoursesByMember, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []CourseMember
-	for rows.Next() {
-		var i CourseMember
-		if err := rows.Scan(
-			&i.ID,
-			&i.CourseID,
-			&i.UserID,
-			&i.Role,
-			&i.JoinedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}

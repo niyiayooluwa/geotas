@@ -12,10 +12,6 @@ RETURNING *;
 SELECT * FROM course_members
 WHERE course_id = $1;
 
--- name: GetCoursesByMember :many
-SELECT * FROM course_members
-WHERE user_id = $1;
-
 -- name: GetCourseMember :one
 SELECT * FROM course_members
 WHERE course_id = $1 AND user_id = $2;

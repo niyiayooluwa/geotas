@@ -59,6 +59,7 @@ func NewRouter(queries *db.Queries) *chi.Mux {
 		r.Post("/courses/join", courseHandler.JoinCourse)
 		r.Get("/courses", courseHandler.GetMyCourses)
 		r.Delete("/courses/{id}", courseHandler.DeleteCourse)
+		r.Get("/courses/enrolled", courseHandler.GetEnrolledCourses)
 
 		// session routes
 		r.Post("/sessions", sessionHandler.CreateSession)
