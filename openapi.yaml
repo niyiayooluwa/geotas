@@ -163,12 +163,34 @@ components:
         method: { type: string, enum: [qr, otp] }
         week_number: { type: int32 }
 
+    MemberCourseResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        owner_id: { type: string, format: uuid }
+        title: { type: string }
+        code: { type: string }
+        department: { type: string }
+        created_at: { type: string }
+        role: { type: string, enum: [lecturer, student] }
+
     Error:
       type: object
       properties:
         message: { type: string }
 
 paths:
+  /health:
+    get:
+      summary: Health check
+      tags: [General]
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema: { type: string, example: "GEOTAS is alive" }
+
   /auth/register:
     post:
       summary: Create a new account
@@ -271,6 +293,20 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/CourseMemberResponse' }
+
+  /courses/enrolled:
+    get:
+      summary: List courses you are enrolled in (as student) or teaching (as lecturer)
+      tags: [Courses]
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MemberCourseResponse' }
 
   /courses/{id}:
     delete:
