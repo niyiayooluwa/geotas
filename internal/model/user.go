@@ -6,7 +6,6 @@ type RegisterRequest struct {
 	LastName            string `json:"last_name"`
 	Email               string `json:"email"`
 	Password            string `json:"password"`
-	MatriculationNumber string `json:"matriculation_number"`
 	Department          string `json:"department"`
 }
 
@@ -16,7 +15,6 @@ type RegisterResponse struct {
 	FirstName           string `json:"first_name"`
 	LastName            string `json:"last_name"`
 	Email               string `json:"email"`
-	MatriculationNumber string `json:"matriculation_number"`
 	Department          string `json:"department"`
 	CreatedAt           string `json:"created_at"`
 }
