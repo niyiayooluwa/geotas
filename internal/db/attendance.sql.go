@@ -132,10 +132,11 @@ SELECT
     ar.os_version,
     u.first_name,
     u.last_name,
-    u.matriculation_number,
+    cm.matriculation_number,
     u.department
 FROM attendance_records ar
 JOIN users u ON ar.user_id = u.id
+JOIN course_members cm ON cm.user_id = ar.user_id AND cm.course_id = $1
 WHERE ar.session_id IN (
     SELECT id FROM sessions WHERE course_id = $1
 )
@@ -159,7 +160,7 @@ type GetAttendanceByCourseRow struct {
 	OsVersion            pgtype.Text
 	FirstName            string
 	LastName             string
-	MatriculationNumber  string
+	MatriculationNumber  pgtype.Text
 	Department           pgtype.Text
 }
 
@@ -220,10 +221,12 @@ SELECT
     ar.os_version,
     u.first_name,
     u.last_name,
-    u.matriculation_number,
+    cm.matriculation_number,
     u.department
 FROM attendance_records ar
 JOIN users u ON ar.user_id = u.id
+JOIN sessions s ON ar.session_id = s.id
+JOIN course_members cm ON cm.user_id = ar.user_id AND cm.course_id = s.course_id
 WHERE ar.session_id = $1
 ORDER BY ar.marked_at ASC
 `
@@ -245,7 +248,7 @@ type GetAttendanceBySessionRow struct {
 	OsVersion            pgtype.Text
 	FirstName            string
 	LastName             string
-	MatriculationNumber  string
+	MatriculationNumber  pgtype.Text
 	Department           pgtype.Text
 }
 

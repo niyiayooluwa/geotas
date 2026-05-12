@@ -4,10 +4,9 @@ INSERT INTO users (
     password_hash,
     first_name,
     last_name,
-    matriculation_number,
     department
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
+    $1, $2, $3, $4, $5
 )
 RETURNING *;
 

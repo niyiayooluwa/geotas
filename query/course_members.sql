@@ -2,9 +2,10 @@
 INSERT INTO course_members (
     course_id,
     user_id,
-    role
+    role,
+    matriculation_number
 ) VALUES (
-    $1, $2, $3
+    $1, $2, $3, $4
 )
 RETURNING *;
 

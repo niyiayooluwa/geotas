@@ -3,8 +3,11 @@ CREATE TABLE IF NOT EXISTS course_members (
     course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role TEXT NOT NULL CHECK (role IN ('student', 'lecturer')),
+    matriculation_number TEXT,
     joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (course_id, user_id)
+    UNIQUE (course_id, user_id),
+    UNIQUE (course_id, user_id, matriculation_number)
+
 );
 
 CREATE INDEX idx_course_members_course_id ON course_members(course_id);

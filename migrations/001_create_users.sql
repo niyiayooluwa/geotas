@@ -4,7 +4,6 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT NOT NULL,
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
-    matriculation_number TEXT NOT NULL UNIQUE,
     department TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-)
+);

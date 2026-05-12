@@ -36,11 +36,12 @@ type Course struct {
 }
 
 type CourseMember struct {
-	ID       pgtype.UUID
-	CourseID pgtype.UUID
-	UserID   pgtype.UUID
-	Role     string
-	JoinedAt pgtype.Timestamptz
+	ID                  pgtype.UUID
+	CourseID            pgtype.UUID
+	UserID              pgtype.UUID
+	Role                string
+	MatriculationNumber pgtype.Text
+	JoinedAt            pgtype.Timestamptz
 }
 
 type OtpCode struct {
@@ -78,12 +79,11 @@ type Session struct {
 }
 
 type User struct {
-	ID                  pgtype.UUID
-	Email               string
-	PasswordHash        string
-	FirstName           string
-	LastName            string
-	MatriculationNumber string
-	Department          pgtype.Text
-	CreatedAt           pgtype.Timestamptz
+	ID           pgtype.UUID
+	Email        string
+	PasswordHash string
+	FirstName    string
+	LastName     string
+	Department   pgtype.Text
+	CreatedAt    pgtype.Timestamptz
 }

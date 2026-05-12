@@ -78,7 +78,6 @@ func (s *AuthService) Register(ctx context.Context, req model.RegisterRequest) (
 		LastName:            req.LastName,
 		Email:               req.Email,
 		PasswordHash:        string(hashedPassword),
-		MatriculationNumber: req.MatriculationNumber,
 		Department: pgtype.Text{
 			String: req.Department,
 			Valid:  req.Department != "",
@@ -99,7 +98,6 @@ func (s *AuthService) Register(ctx context.Context, req model.RegisterRequest) (
 		FirstName:           user.FirstName,
 		LastName:            user.LastName,
 		Email:               user.Email,
-		MatriculationNumber: user.MatriculationNumber,
 		Department:          user.Department.String,
 		CreatedAt:           user.CreatedAt.Time.Format("2006-01-02 15:04:05"),
 	}, nil

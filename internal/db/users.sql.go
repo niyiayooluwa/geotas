@@ -17,21 +17,19 @@ INSERT INTO users (
     password_hash,
     first_name,
     last_name,
-    matriculation_number,
     department
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
+    $1, $2, $3, $4, $5
 )
-RETURNING id, email, password_hash, first_name, last_name, matriculation_number, department, created_at
+RETURNING id, email, password_hash, first_name, last_name, department, created_at
 `
 
 type CreateUserParams struct {
-	Email               string
-	PasswordHash        string
-	FirstName           string
-	LastName            string
-	MatriculationNumber string
-	Department          pgtype.Text
+	Email        string
+	PasswordHash string
+	FirstName    string
+	LastName     string
+	Department   pgtype.Text
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -40,7 +38,6 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.PasswordHash,
 		arg.FirstName,
 		arg.LastName,
-		arg.MatriculationNumber,
 		arg.Department,
 	)
 	var i User
@@ -50,7 +47,6 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.PasswordHash,
 		&i.FirstName,
 		&i.LastName,
-		&i.MatriculationNumber,
 		&i.Department,
 		&i.CreatedAt,
 	)
@@ -58,7 +54,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, first_name, last_name, matriculation_number, department, created_at FROM users
+SELECT id, email, password_hash, first_name, last_name, department, created_at FROM users
 WHERE email = $1
 `
 
@@ -71,7 +67,6 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.PasswordHash,
 		&i.FirstName,
 		&i.LastName,
-		&i.MatriculationNumber,
 		&i.Department,
 		&i.CreatedAt,
 	)
@@ -79,7 +74,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, first_name, last_name, matriculation_number, department, created_at FROM users
+SELECT id, email, password_hash, first_name, last_name, department, created_at FROM users
 WHERE id = $1
 `
 
@@ -92,7 +87,6 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.PasswordHash,
 		&i.FirstName,
 		&i.LastName,
-		&i.MatriculationNumber,
 		&i.Department,
 		&i.CreatedAt,
 	)
