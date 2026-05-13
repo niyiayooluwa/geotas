@@ -17,13 +17,12 @@ components:
   schemas:
     RegisterRequest:
       type: object
-      required: [first_name, last_name, email, password, matriculation_number]
+      required: [first_name, last_name, email, password]
       properties:
         first_name: { type: string }
         last_name: { type: string }
         email: { type: string, format: email }
         password: { type: string, format: password, minLength: 8 }
-        matriculation_number: { type: string }
         department: { type: string }
 
     RegisterResponse:
@@ -33,7 +32,6 @@ components:
         first_name: { type: string }
         last_name: { type: string }
         email: { type: string }
-        matriculation_number: { type: string }
         department: { type: string }
         created_at: { type: string }
 
@@ -74,9 +72,10 @@ components:
 
     JoinCourseRequest:
       type: object
-      required: [invite_code]
+      required: [invite_code, matriculation_number]
       properties:
         invite_code: { type: string }
+        matriculation_number: { type: string }
 
     CourseMemberResponse:
       type: object
@@ -85,6 +84,7 @@ components:
         course_id: { type: string, format: uuid }
         user_id: { type: string, format: uuid }
         role: { type: string, enum: [lecturer, student] }
+        matriculation_number: { type: string }
         joined_at: { type: string }
 
     CreateSessionRequest:
@@ -173,6 +173,7 @@ components:
         department: { type: string }
         created_at: { type: string }
         role: { type: string, enum: [lecturer, student] }
+        matriculation_number: { type: string }
 
     Error:
       type: object
