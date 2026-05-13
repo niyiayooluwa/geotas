@@ -163,6 +163,28 @@ components:
         method: { type: string, enum: [qr, otp] }
         week_number: { type: int32 }
 
+    DetailedAttendanceResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        session_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        marked_at: { type: string }
+        method: { type: string, enum: [qr, otp] }
+        latitude: { type: number, format: float }
+        longitude: { type: number, format: float }
+        distance_from_center: { type: number, format: float }
+        mock_location_detected: { type: boolean }
+        confidence_score: { type: number, format: float }
+        week_number: { type: int32 }
+        device_id: { type: string }
+        device_model: { type: string }
+        os_version: { type: string }
+        first_name: { type: string }
+        last_name: { type: string }
+        matriculation_number: { type: string }
+        department: { type: string }
+
     MemberCourseResponse:
       type: object
       properties:
@@ -375,6 +397,30 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SessionResponse' }
+
+  /sessions/{id}/attendance:
+    get:
+      summary: Get attendance for a session (lecturer only)
+      tags: [Attendance]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DetailedAttendanceResponse' }
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema: { type: string }
 
   /sessions/{id}:
     delete:
