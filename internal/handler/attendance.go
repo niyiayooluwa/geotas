@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/niyiayooluwa/geotas/internal/middleware"
 	"github.com/niyiayooluwa/geotas/internal/model"
 	"github.com/niyiayooluwa/geotas/internal/service"
@@ -80,3 +81,19 @@ func (h *AttendanceHandler) RequestOTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
+
+func (h *AttendanceHandler) GetAttendanceBySession(w http.ResponseWriter, r *http.Request) {
+	var userID string = r.Context().Value(middleware.UserIDKey).(string)
+	var sessionID string = chi.URLParam(r, "id")
+
+	response, err := h.attendanceService.GetAttendanceBySession(r.Context(), userID, sessionID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+

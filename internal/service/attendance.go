@@ -192,3 +192,79 @@ func (s *AttendanceService) GetAttendanceBySession(ctx context.Context, userID, 
 	return response, nil
 }
 
+func (s *AttendanceService) mark(
+	ctx context.Context,
+	userID string,
+	method string,
+	sessionUUID pgtype.UUID,
+	lat, lon float64,
+	deviceID, deviceModel, osVersion string,
+	mockDetected bool,
+) (model.AttendanceResponse, error) {
+	userUUID, err := parseUUID(userID)
+	if err != nil {
+		return model.AttendanceResponse{}, err
+	}
+
+	session, err := s.sessionRepo.GetSessionByID(ctx, sessionUUID)
+	if err != nil {
+		return model.AttendanceResponse{}, errors.New("Session not found")
+	}
+
+	if session.Status != "active" {
+		return model.AttendanceResponse{}, errors.New("Session is not active")
+	}
+
+	// enrollment check
+	_, err = s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
+		CourseID: session.CourseID,
+		UserID:   userUUID,
+	})
+	if err != nil {
+		return model.AttendanceResponse{}, errors.New("Not enrolled in course")
+	}
+
+	// duplicate check
+	_, err = s.attendanceRepo.GetAttendanceByUserAndSession(ctx, userUUID, sessionUUID)
+	if err == nil {
+		return model.AttendanceResponse{}, errors.New("Attendance already marked")
+	}
+
+	// device check
+	duplicateDevice := false
+	_, err = s.attendanceRepo.CheckDuplicateDevice(ctx, sessionUUID, deviceID)
+	if err == nil {
+		duplicateDevice = true
+	}
+
+	dist := calculateDistance(lat, lon, session.Latitude, session.Longitude)
+	score := computeConfidenceScore(dist, session.RadiusMeters, method == "qr", mockDetected, duplicateDevice, session.StartedAt.Time)
+
+	record, err := s.attendanceRepo.CreateAttendanceRecord(ctx, db.CreateAttendanceRecordParams{
+		SessionID:            sessionUUID,
+		UserID:               userUUID,
+		Method:               method,
+		Latitude:             lat,
+		Longitude:            lon,
+		DistanceFromCenter:   dist,
+		MockLocationDetected: mockDetected,
+		ConfidenceScore:      score,
+		WeekNumber:           session.WeekNumber,
+		DeviceID:             pgtype.Text{String: deviceID, Valid: deviceID != ""},
+		DeviceModel:          pgtype.Text{String: deviceModel, Valid: deviceModel != ""},
+		OsVersion:            pgtype.Text{String: osVersion, Valid: osVersion != ""},
+	})
+	if err != nil {
+		return model.AttendanceResponse{}, errors.New("Failed to record attendance")
+	}
+
+	return model.AttendanceResponse{
+		ID:         record.ID.String(),
+		SessionID:  record.SessionID.String(),
+		UserID:     record.UserID.String(),
+		MarkedAt:   record.MarkedAt.Time.Format("2006-01-02 15:04:05"),
+		Method:     record.Method,
+		WeekNumber: record.WeekNumber,
+	}, nil
+}
+

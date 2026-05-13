@@ -67,6 +67,7 @@ func NewRouter(queries *db.Queries) *chi.Mux {
 		r.Patch("/sessions/{id}/close", sessionHandler.CloseSession)
 		r.Delete("/sessions/{id}", sessionHandler.DeleteSession)
 		r.Get("/sessions/{id}/qr-token", sessionHandler.GetLiveQRToken)
+		r.Get("/sessions/{id}/attendance", attendanceHandler.GetAttendanceBySession)
 
 		// attendance routes
 		r.Post("/attendance/qr", attendanceHandler.MarkAttendanceQR)
