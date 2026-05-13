@@ -44,3 +44,25 @@ type AttendanceResponse struct {
 	Method     string `json:"method"`
 	WeekNumber int32  `json:"week_number"`
 }
+
+// DetailedAttendanceResponse is what a lecturer sees when viewing session attendance
+type DetailedAttendanceResponse struct {
+	ID                   string  `json:"id"`
+	SessionID            string  `json:"session_id"`
+	UserID               string  `json:"user_id"`
+	MarkedAt             string  `json:"marked_at"`
+	Method               string  `json:"method"`
+	Latitude             float64 `json:"latitude"`
+	Longitude            float64 `json:"longitude"`
+	DistanceFromCenter   float64 `json:"distance_from_center"`
+	MockLocationDetected bool    `json:"mock_location_detected"`
+	ConfidenceScore      float64 `json:"confidence_score"`
+	WeekNumber           int32   `json:"week_number"`
+	DeviceID             string  `json:"device_id"`
+	DeviceModel          string  `json:"device_model"`
+	OsVersion            string  `json:"os_version"`
+	FirstName            string  `json:"first_name"`
+	LastName             string  `json:"last_name"`
+	MatriculationNumber  string  `json:"matriculation_number"`
+	Department           string  `json:"department"`
+}

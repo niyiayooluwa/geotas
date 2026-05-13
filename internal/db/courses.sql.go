@@ -132,21 +132,23 @@ SELECT
     c.department,
     c.invite_code,
     c.created_at,
-    cm.role
+    cm.role,
+    cm.matriculation_number
 FROM course_members cm
 JOIN courses c ON cm.course_id = c.id
 WHERE cm.user_id = $1
 `
 
 type GetCoursesByMemberRow struct {
-	ID         pgtype.UUID
-	OwnerID    pgtype.UUID
-	Title      string
-	Code       string
-	Department pgtype.Text
-	InviteCode string
-	CreatedAt  pgtype.Timestamptz
-	Role       string
+	ID                  pgtype.UUID
+	OwnerID             pgtype.UUID
+	Title               string
+	Code                string
+	Department          pgtype.Text
+	InviteCode          string
+	CreatedAt           pgtype.Timestamptz
+	Role                string
+	MatriculationNumber pgtype.Text
 }
 
 func (q *Queries) GetCoursesByMember(ctx context.Context, userID pgtype.UUID) ([]GetCoursesByMemberRow, error) {
@@ -167,6 +169,7 @@ func (q *Queries) GetCoursesByMember(ctx context.Context, userID pgtype.UUID) ([
 			&i.InviteCode,
 			&i.CreatedAt,
 			&i.Role,
+			&i.MatriculationNumber,
 		); err != nil {
 			return nil, err
 		}

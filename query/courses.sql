@@ -39,7 +39,8 @@ SELECT
     c.department,
     c.invite_code,
     c.created_at,
-    cm.role
+    cm.role,
+    cm.matriculation_number
 FROM course_members cm
 JOIN courses c ON cm.course_id = c.id
 WHERE cm.user_id = $1;

@@ -20,24 +20,27 @@ type CourseResponse struct {
 
 // incoming request to join a course
 type JoinCourseRequest struct {
-	InviteCode string `json:"invite_code"`
+	InviteCode          string `json:"invite_code"`
+	MatriculationNumber string `json:"matriculation_number"`
 }
 
 // what we send back after joining a course
 type CourseMemberResponse struct {
-	ID       string `json:"id"`
-	CourseID string `json:"course_id"`
-	UserID   string `json:"user_id"`
-	Role     string `json:"role"`
-	JoinedAt string `json:"joined_at"`
+	ID                  string `json:"id"`
+	CourseID            string `json:"course_id"`
+	UserID              string `json:"user_id"`
+	Role                string `json:"role"`
+	MatriculationNumber string `json:"matriculation_number"`
+	JoinedAt            string `json:"joined_at"`
 }
 
 type MemberCourseResponse struct {
-	ID         string `json:"id"`
-	OwnerID    string `json:"owner_id"`
-	Title      string `json:"title"`
-	Code       string `json:"code"`
-	Department string `json:"department"`
-	CreatedAt  string `json:"created_at"`
-	Role       string `json:"role"`
+	ID                  string `json:"id"`
+	OwnerID             string `json:"owner_id"`
+	Title               string `json:"title"`
+	Code                string `json:"code"`
+	Department          string `json:"department"`
+	CreatedAt           string `json:"created_at"`
+	Role                string `json:"role"`
+	MatriculationNumber string `json:"matriculation_number"`
 }

@@ -134,78 +134,61 @@ func (s *AttendanceService) MarkAttendanceOTP(ctx context.Context, userID string
 	return s.mark(ctx, userID, "otp", sessionUUID, req.Latitude, req.Longitude, req.DeviceID, req.DeviceModel, req.OsVersion, req.MockLocationDetected)
 }
 
-func (s *AttendanceService) mark(
-	ctx context.Context,
-	userID string,
-	method string,
-	sessionUUID pgtype.UUID,
-	lat, lon float64,
-	deviceID, deviceModel, osVersion string,
-	mockDetected bool,
-) (model.AttendanceResponse, error) {
+func (s *AttendanceService) GetAttendanceBySession(ctx context.Context, userID, sessionID string) ([]model.DetailedAttendanceResponse, error) {
+	sessionUUID, err := parseUUID(sessionID)
+	if err != nil {
+		return nil, errors.New("Invalid session ID")
+	}
+
 	userUUID, err := parseUUID(userID)
 	if err != nil {
-		return model.AttendanceResponse{}, err
+		return nil, err
 	}
 
+	// fetch session to confirm course ownership
 	session, err := s.sessionRepo.GetSessionByID(ctx, sessionUUID)
 	if err != nil {
-		return model.AttendanceResponse{}, errors.New("Session not found")
+		return nil, errors.New("Session not found")
 	}
 
-	if session.Status != "active" {
-		return model.AttendanceResponse{}, errors.New("Session is not active")
-	}
-
-	// enrollment check
-	_, err = s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
-		CourseID: session.CourseID,
-		UserID:   userUUID,
-	})
+	course, err := s.courseRepo.GetCourseByID(ctx, session.CourseID)
 	if err != nil {
-		return model.AttendanceResponse{}, errors.New("Not enrolled in course")
+		return nil, errors.New("Course not found")
 	}
 
-	// duplicate check
-	_, err = s.attendanceRepo.GetAttendanceByUserAndSession(ctx, userUUID, sessionUUID)
-	if err == nil {
-		return model.AttendanceResponse{}, errors.New("Attendance already marked")
+	if course.OwnerID != userUUID {
+		return nil, errors.New("You do not own this course")
 	}
 
-	// device check
-	duplicateDevice := false
-	_, err = s.attendanceRepo.CheckDuplicateDevice(ctx, sessionUUID, deviceID)
-	if err == nil {
-		duplicateDevice = true
-	}
-
-	dist := calculateDistance(lat, lon, session.Latitude, session.Longitude)
-	score := computeConfidenceScore(dist, session.RadiusMeters, method == "qr", mockDetected, duplicateDevice, session.StartedAt.Time)
-
-	record, err := s.attendanceRepo.CreateAttendanceRecord(ctx, db.CreateAttendanceRecordParams{
-		SessionID:            sessionUUID,
-		UserID:               userUUID,
-		Method:               method,
-		Latitude:             lat,
-		Longitude:            lon,
-		DistanceFromCenter:   dist,
-		MockLocationDetected: mockDetected,
-		ConfidenceScore:      score,
-		WeekNumber:           session.WeekNumber,
-		DeviceID:             pgtype.Text{String: deviceID, Valid: deviceID != ""},
-		DeviceModel:          pgtype.Text{String: deviceModel, Valid: deviceModel != ""},
-		OsVersion:            pgtype.Text{String: osVersion, Valid: osVersion != ""},
-	})
+	records, err := s.attendanceRepo.GetAttendanceBySession(ctx, sessionUUID)
 	if err != nil {
-		return model.AttendanceResponse{}, errors.New("Failed to record attendance")
+		return nil, errors.New("Could not fetch attendance records")
 	}
 
-	return model.AttendanceResponse{
-		ID:         record.ID.String(),
-		SessionID:  record.SessionID.String(),
-		UserID:     record.UserID.String(),
-		MarkedAt:   record.MarkedAt.Time.Format("2006-01-02 15:04:05"),
-		Method:     record.Method,
-		WeekNumber: record.WeekNumber,
-	}, nil
+	var response []model.DetailedAttendanceResponse
+	for _, r := range records {
+		response = append(response, model.DetailedAttendanceResponse{
+			ID:                   r.ID.String(),
+			SessionID:            r.SessionID.String(),
+			UserID:               r.UserID.String(),
+			MarkedAt:             r.MarkedAt.Time.Format("2006-01-02 15:04:05"),
+			Method:               r.Method,
+			Latitude:             r.Latitude,
+			Longitude:            r.Longitude,
+			DistanceFromCenter:   r.DistanceFromCenter,
+			MockLocationDetected: r.MockLocationDetected,
+			ConfidenceScore:      r.ConfidenceScore,
+			WeekNumber:           r.WeekNumber,
+			DeviceID:             r.DeviceID.String,
+			DeviceModel:          r.DeviceModel.String,
+			OsVersion:            r.OsVersion.String,
+			FirstName:            r.FirstName,
+			LastName:             r.LastName,
+			MatriculationNumber:  r.MatriculationNumber.String,
+			Department:           r.Department.String,
+		})
+	}
+
+	return response, nil
 }
+

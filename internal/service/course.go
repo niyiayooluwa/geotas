@@ -79,6 +79,9 @@ func (s *CourseService) CreateCourse(ctx context.Context, userID string, req mod
 		CourseID: course.ID,
 		UserID:   ownerID,
 		Role:     "lecturer",
+		MatriculationNumber: pgtype.Text{
+			Valid: false, // lecturers don't have matriculation numbers
+		},
 	})
 	if err != nil {
 		return model.CourseResponse{}, errors.New("Failed to add course member")
@@ -98,6 +101,10 @@ func (s *CourseService) CreateCourse(ctx context.Context, userID string, req mod
 func (s *CourseService) JoinCourse(ctx context.Context, userID string, req model.JoinCourseRequest) (model.CourseMemberResponse, error) {
 	if req.InviteCode == "" {
 		return model.CourseMemberResponse{}, errors.New("invite code is required")
+	}
+
+	if req.MatriculationNumber == "" {
+		return model.CourseMemberResponse{}, errors.New("matriculation number is required to join a course")
 	}
 
 	// look up course by invite code
@@ -131,17 +138,26 @@ func (s *CourseService) JoinCourse(ctx context.Context, userID string, req model
 		CourseID: course.ID,
 		UserID:   studentID,
 		Role:     "student",
+		MatriculationNumber: pgtype.Text{
+			String: req.MatriculationNumber,
+			Valid:  true,
+		},
 	})
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return model.CourseMemberResponse{}, errors.New("this matriculation number is already registered for this course")
+		}
 		return model.CourseMemberResponse{}, errors.New("could not join course")
 	}
 
 	return model.CourseMemberResponse{
-		ID:       member.ID.String(),
-		CourseID: member.CourseID.String(),
-		UserID:   member.UserID.String(),
-		Role:     member.Role,
-		JoinedAt: member.JoinedAt.Time.Format("2006-01-02 15:04:05"),
+		ID:                  member.ID.String(),
+		CourseID:            member.CourseID.String(),
+		UserID:              member.UserID.String(),
+		Role:                member.Role,
+		MatriculationNumber: member.MatriculationNumber.String,
+		JoinedAt:            member.JoinedAt.Time.Format("2006-01-02 15:04:05"),
 	}, nil
 }
 
@@ -210,13 +226,14 @@ func (s *CourseService) GetCoursesByMember(ctx context.Context, userID string) (
 	var response []model.MemberCourseResponse
 	for _, c := range courses {
 		response = append(response, model.MemberCourseResponse{
-			ID:         c.ID.String(),
-			OwnerID:    c.OwnerID.String(),
-			Title:      c.Title,
-			Code:       c.Code,
-			Department: c.Department.String,
-			CreatedAt:  c.CreatedAt.Time.Format("2006-01-02 15:04:05"),
-			Role:       c.Role,
+			ID:                  c.ID.String(),
+			OwnerID:             c.OwnerID.String(),
+			Title:               c.Title,
+			Code:                c.Code,
+			Department:          c.Department.String,
+			CreatedAt:           c.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+			Role:                c.Role,
+			MatriculationNumber: c.MatriculationNumber.String,
 		})
 	}
 
