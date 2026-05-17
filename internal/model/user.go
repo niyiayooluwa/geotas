@@ -19,6 +19,16 @@ type RegisterResponse struct {
 	CreatedAt           string `json:"created_at"`
 }
 
+// what we send back for profile info
+type UserResponse struct {
+	ID         string `json:"id"`
+	FirstName  string `json:"first_name"`
+	LastName   string `json:"last_name"`
+	Email      string `json:"email"`
+	Department string `json:"department"`
+	CreatedAt  string `json:"created_at"`
+}
+
 // incoming request to login
 type LoginRequest struct {
 	Email    string `json:"email"`

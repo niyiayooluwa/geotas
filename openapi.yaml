@@ -35,6 +35,16 @@ components:
         department: { type: string }
         created_at: { type: string }
 
+    UserResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        first_name: { type: string }
+        last_name: { type: string }
+        email: { type: string }
+        department: { type: string }
+        created_at: { type: string }
+
     LoginRequest:
       type: object
       required: [email, password]
@@ -266,10 +276,7 @@ paths:
           description: OK
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  user_id: { type: string, format: uuid }
+              schema: { $ref: '#/components/schemas/UserResponse' }
 
   /courses:
     get:

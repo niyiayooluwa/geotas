@@ -154,3 +154,19 @@ func (s *AuthService) GetUserByID(ctx context.Context, userID string) (db.User, 
 	}
 	return s.userRepo.GetUserByID(ctx, uuid)
 }
+
+func (s *AuthService) GetUserProfile(ctx context.Context, userID string) (model.UserResponse, error) {
+	user, err := s.GetUserByID(ctx, userID)
+	if err != nil {
+		return model.UserResponse{}, err
+	}
+
+	return model.UserResponse{
+		ID:         user.ID.String(),
+		FirstName:  user.FirstName,
+		LastName:   user.LastName,
+		Email:      user.Email,
+		Department: user.Department.String,
+		CreatedAt:  user.CreatedAt.Time.Format(time.RFC3339),
+	}, nil
+}

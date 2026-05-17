@@ -19,9 +19,13 @@ func NewUserHandler(authService *service.AuthService) *UserHandler {
 func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
 	var userID string = r.Context().Value(middleware.UserIDKey).(string)
 
+	response, err := h.authService.GetUserProfile(r.Context(), userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
-		"user_id": userID,
-	})
+	json.NewEncoder(w).Encode(response)
 }
