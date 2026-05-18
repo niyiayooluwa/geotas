@@ -40,6 +40,7 @@ type MemberCourseResponse struct {
 	Title               string `json:"title"`
 	Code                string `json:"code"`
 	Department          string `json:"department"`
+	InviteCode          string `json:"invite_code"`
 	CreatedAt           string `json:"created_at"`
 	Role                string `json:"role"`
 	MatriculationNumber string `json:"matriculation_number"`
