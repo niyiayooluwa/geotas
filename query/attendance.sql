@@ -80,3 +80,14 @@ WHERE ar.session_id IN (
     SELECT id FROM sessions WHERE course_id = $1
 )
 ORDER BY u.last_name ASC, ar.week_number ASC;
+
+-- name: GetPrimaryDeviceForUser :one
+SELECT device_id FROM attendance_records
+WHERE user_id = $1
+AND session_id IN (
+    SELECT id FROM sessions WHERE course_id = $2 AND status = 'closed'
+)
+AND device_id IS NOT NULL
+GROUP BY device_id
+ORDER BY COUNT(*) DESC
+LIMIT 1;

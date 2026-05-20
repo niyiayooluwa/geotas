@@ -322,3 +322,27 @@ func (q *Queries) GetAttendanceByUserAndSession(ctx context.Context, arg GetAtte
 	)
 	return i, err
 }
+
+const getPrimaryDeviceForUser = `-- name: GetPrimaryDeviceForUser :one
+SELECT device_id FROM attendance_records
+WHERE user_id = $1
+AND session_id IN (
+    SELECT id FROM sessions WHERE course_id = $2 AND status = 'closed'
+)
+AND device_id IS NOT NULL
+GROUP BY device_id
+ORDER BY COUNT(*) DESC
+LIMIT 1
+`
+
+type GetPrimaryDeviceForUserParams struct {
+	UserID   pgtype.UUID
+	CourseID pgtype.UUID
+}
+
+func (q *Queries) GetPrimaryDeviceForUser(ctx context.Context, arg GetPrimaryDeviceForUserParams) (pgtype.Text, error) {
+	row := q.db.QueryRow(ctx, getPrimaryDeviceForUser, arg.UserID, arg.CourseID)
+	var device_id pgtype.Text
+	err := row.Scan(&device_id)
+	return device_id, err
+}

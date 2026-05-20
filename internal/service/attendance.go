@@ -54,35 +54,38 @@ func computeConfidenceScore(
 	isQR bool,
 	mockDetected bool,
 	duplicateDevice bool,
+	deviceSwitched bool,
 	sessionStartedAt time.Time,
 ) float64 {
-	var score float64 = 0.0
+	score := 1.0
 
-	if dist <= radius {
-		score += 0.35
-	}
-
-	if dist <= radius {
-		score += (1.0 - (dist / radius)) * 0.20
-	}
-
-	if isQR {
-		score += 0.15
+	if dist > radius {
+		score -= 0.50
 	} else {
-		score += 0.05
+		score -= (dist / radius) * 0.15
+	}
+
+	if !isQR {
+		score -= 0.10
 	}
 
 	elapsed := time.Since(sessionStartedAt).Minutes()
-	if elapsed < 60 {
-		score += (1.0 - (elapsed / 60.0)) * 0.15
+	if elapsed >= 60 {
+		score -= 0.15
+	} else {
+		score -= (elapsed / 60.0) * 0.10
 	}
 
-	if !mockDetected {
-		score += 0.10
+	if mockDetected {
+		score -= 0.40
 	}
 
-	if !duplicateDevice {
-		score += 0.05
+	if duplicateDevice {
+		score -= 0.30
+	}
+
+	if deviceSwitched {
+		score -= 0.20
 	}
 
 	return math.Max(0, math.Min(1.0, score))
@@ -215,6 +218,11 @@ func (s *AttendanceService) mark(
 		return model.AttendanceResponse{}, errors.New("Session is not active")
 	}
 
+	// hard block — mock location has no legitimate excuse
+	if mockDetected {
+		return model.AttendanceResponse{}, errors.New("Mock location detected — attendance cannot be marked")
+	}
+
 	// enrollment check
 	_, err = s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
 		CourseID: session.CourseID,
@@ -224,21 +232,36 @@ func (s *AttendanceService) mark(
 		return model.AttendanceResponse{}, errors.New("Not enrolled in course")
 	}
 
-	// duplicate check
+	// duplicate attendance check
 	_, err = s.attendanceRepo.GetAttendanceByUserAndSession(ctx, userUUID, sessionUUID)
 	if err == nil {
 		return model.AttendanceResponse{}, errors.New("Attendance already marked")
 	}
 
-	// device check
+	// duplicate device in this session — flag, do not block
 	duplicateDevice := false
 	_, err = s.attendanceRepo.CheckDuplicateDevice(ctx, sessionUUID, deviceID)
 	if err == nil {
 		duplicateDevice = true
 	}
 
+	// device switching — compare against prior closed sessions in this course
+	deviceSwitched := false
+	priorDeviceID, err := s.attendanceRepo.GetPrimaryDeviceForUser(ctx, userUUID, session.CourseID)
+	if err == nil && priorDeviceID != deviceID {
+		deviceSwitched = true
+	}
+
 	dist := calculateDistance(lat, lon, session.Latitude, session.Longitude)
-	score := computeConfidenceScore(dist, session.RadiusMeters, method == "qr", mockDetected, duplicateDevice, session.StartedAt.Time)
+	score := computeConfidenceScore(
+		dist,
+		session.RadiusMeters,
+		method == "qr",
+		mockDetected,
+		duplicateDevice,
+		deviceSwitched,
+		session.StartedAt.Time,
+	)
 
 	record, err := s.attendanceRepo.CreateAttendanceRecord(ctx, db.CreateAttendanceRecordParams{
 		SessionID:            sessionUUID,

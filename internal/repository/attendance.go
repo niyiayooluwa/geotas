@@ -40,3 +40,14 @@ func (r *AttendanceRepository) CheckDuplicateDevice(ctx context.Context, session
 func (r *AttendanceRepository) GetAttendanceByCourse(ctx context.Context, courseID pgtype.UUID) ([]db.GetAttendanceByCourseRow, error) {
 	return r.queries.GetAttendanceByCourse(ctx, courseID)
 }
+
+func (r *AttendanceRepository) GetPrimaryDeviceForUser(ctx context.Context, userID pgtype.UUID, courseID pgtype.UUID) (string, error) {
+	deviceID, err := r.queries.GetPrimaryDeviceForUser(ctx, db.GetPrimaryDeviceForUserParams{
+		UserID:   userID,
+		CourseID: courseID,
+	})
+	if err != nil {
+		return "", err
+	}
+	return deviceID.String, nil
+}
