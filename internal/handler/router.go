@@ -16,6 +16,7 @@ func NewRouter(queries *db.Queries) *chi.Mux {
 
 	router.Use(chiMiddleware.Logger)
 	router.Use(chiMiddleware.Recoverer)
+	router.Use(chiMiddleware.Compress(5)) // add this
 
 	// wire up repositories
 	var userRepo *repository.UserRepository = repository.NewUserRepository(queries)
