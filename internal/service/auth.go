@@ -4,123 +4,66 @@ import (
 	"context"
 	"errors"
 	"os"
-	"regexp"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/niyiayooluwa/geotas/internal/db"
 	"github.com/niyiayooluwa/geotas/internal/model"
 	"github.com/niyiayooluwa/geotas/internal/repository"
-	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/api/idtoken"
 )
 
 type AuthService struct {
 	userRepo *repository.UserRepository
 }
 
-// constructor
 func NewAuthService(userRepo *repository.UserRepository) *AuthService {
 	return &AuthService{userRepo: userRepo}
 }
 
-// validates the register request fields
-func (s *AuthService) ValidateRegisterRequest(req model.RegisterRequest) error {
-	if req.FirstName == "" || req.LastName == "" {
-		return errors.New("First name and last name are required")
-	}
+func (s *AuthService) GoogleLogin(ctx context.Context, req model.GoogleLoginRequest) (model.LoginResponse, error) {
+	clientID := os.Getenv("GOOGLE_CLIENT_ID")
 
-	var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
-	if !emailRegex.MatchString(req.Email) {
-		return errors.New("Invalid email address")
-	}
-
-	if len(req.Password) < 8 {
-		return errors.New("Password must be at least 8 characters")
-	}
-
-	if !regexp.MustCompile(`[A-Z]`).MatchString(req.Password) {
-		return errors.New("Password must contain at least one uppercase letter")
-	}
-
-	if !regexp.MustCompile(`[a-z]`).MatchString(req.Password) {
-		return errors.New("Password must contain at least one lowercase letter")
-	}
-
-	if !regexp.MustCompile(`[0-9]`).MatchString(req.Password) {
-		return errors.New("Password must contain at least one number")
-	}
-
-	if !regexp.MustCompile(`[^a-zA-Z0-9]`).MatchString(req.Password) {
-		return errors.New("Password must contain at least one special character")
-	}
-
-	return nil
-}
-
-// handles full registration logic
-func (s *AuthService) Register(ctx context.Context, req model.RegisterRequest) (model.RegisterResponse, error) {
-	// validate input
-	if err := s.ValidateRegisterRequest(req); err != nil {
-		return model.RegisterResponse{}, err
-	}
-
-	// hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	// 1. Verify token with Google
+	payload, err := idtoken.Validate(ctx, req.IDToken, clientID)
 	if err != nil {
-		return model.RegisterResponse{}, errors.New("Could not hash password")
+		return model.LoginResponse{}, errors.New("invalid Google token")
 	}
 
-	// insert into DB
-	user, err := s.userRepo.CreateUser(ctx, db.CreateUserParams{
-		FirstName:           req.FirstName,
-		LastName:            req.LastName,
-		Email:               req.Email,
-		PasswordHash:        string(hashedPassword),
-		Department: pgtype.Text{
-			String: req.Department,
-			Valid:  req.Department != "",
-		},
+	// 2. Safely extract claims
+	googleID := payload.Subject
+	email, _ := payload.Claims["email"].(string)
+	avatarURL, _ := payload.Claims["picture"].(string)
+
+	// Google's payload structure can vary slightly depending on the user's profile
+	firstName, _ := payload.Claims["given_name"].(string)
+	lastName, _ := payload.Claims["family_name"].(string)
+	
+	if firstName == "" {
+		name, _ := payload.Claims["name"].(string)
+		parts := strings.SplitN(name, " ", 2)
+		firstName = parts[0]
+		if len(parts) > 1 {
+			lastName = parts[1]
+		}
+	}
+
+	// 3. Upsert user
+	user, err := s.userRepo.UpsertGoogleUser(ctx, db.UpsertGoogleUserParams{
+		Email:     email,
+		GoogleID:  pgtype.Text{String: googleID, Valid: true},
+		FirstName: firstName,
+		LastName:  lastName,
+		AvatarUrl: pgtype.Text{String: avatarURL, Valid: avatarURL != ""},
 	})
 	if err != nil {
-		// detect duplicate email or matric number
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return model.RegisterResponse{}, errors.New("Email or matric number already exists")
-		}
-		return model.RegisterResponse{}, errors.New("Could not create user")
+		return model.LoginResponse{}, errors.New("could not save user data")
 	}
 
-	// build and return response
-	return model.RegisterResponse{
-		ID:                  user.ID.String(),
-		FirstName:           user.FirstName,
-		LastName:            user.LastName,
-		Email:               user.Email,
-		Department:          user.Department.String,
-		CreatedAt:           user.CreatedAt.Time.Format("2006-01-02 15:04:05"),
-	}, nil
-}
-
-// handles full login logic
-func (s *AuthService) Login(ctx context.Context, req model.LoginRequest) (model.LoginResponse, error) {
-	// fetch user by email
-	user, err := s.userRepo.GetUserByEmail(ctx, req.Email)
-	if err != nil {
-		return model.LoginResponse{}, errors.New("Invalid credentials")
-	}
-
-	// compare password with stored hash
-	if err := bcrypt.CompareHashAndPassword(
-		[]byte(user.PasswordHash),
-		[]byte(req.Password),
-	); err != nil {
-		return model.LoginResponse{}, errors.New("Invalid credentials")
-	}
-
-	// build JWT claims
-	var claims model.Claims = model.Claims{
+	// 4. Generate GEOTAS JWT
+	claims := model.Claims{
 		UserID: user.ID.String(),
 		Email:  user.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -129,12 +72,10 @@ func (s *AuthService) Login(ctx context.Context, req model.LoginRequest) (model.
 		},
 	}
 
-	// sign the token
-	var token *jwt.Token = jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	var secret string = os.Getenv("JWT_SECRET")
-	signedToken, err := token.SignedString([]byte(secret))
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signedToken, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
 	if err != nil {
-		return model.LoginResponse{}, errors.New("Could not generate token")
+		return model.LoginResponse{}, errors.New("could not generate token")
 	}
 
 	return model.LoginResponse{
@@ -143,14 +84,15 @@ func (s *AuthService) Login(ctx context.Context, req model.LoginRequest) (model.
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
 		Email:     user.Email,
+		AvatarURL: user.AvatarUrl.String,
 	}, nil
 }
 
-// GetUserByID fetches a user by their UUID string
+// Keep GetUserByID and GetUserProfile exactly as they were
 func (s *AuthService) GetUserByID(ctx context.Context, userID string) (db.User, error) {
 	var uuid pgtype.UUID
 	if err := uuid.Scan(userID); err != nil {
-		return db.User{}, errors.New("Invalid user id")
+		return db.User{}, errors.New("invalid user id")
 	}
 	return s.userRepo.GetUserByID(ctx, uuid)
 }

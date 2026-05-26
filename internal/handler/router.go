@@ -47,8 +47,7 @@ func NewRouter(queries *db.Queries) *chi.Mux {
 	})
 
 	// public routes
-	router.Post("/auth/register", authHandler.Register)
-	router.Post("/auth/login", authHandler.Login)
+	router.Post("/auth/google", authHandler.GoogleLogin)
 
 	// protected routes
 	router.Group(func(r chi.Router) {

@@ -79,11 +79,12 @@ type Session struct {
 }
 
 type User struct {
-	ID           pgtype.UUID
-	Email        string
-	PasswordHash string
-	FirstName    string
-	LastName     string
-	Department   pgtype.Text
-	CreatedAt    pgtype.Timestamptz
+	ID         pgtype.UUID
+	Email      string
+	FirstName  string
+	LastName   string
+	Department pgtype.Text
+	CreatedAt  pgtype.Timestamptz
+	GoogleID   pgtype.Text
+	AvatarUrl  pgtype.Text
 }

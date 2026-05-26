@@ -1,25 +1,19 @@
 package model
 
-// incoming request to register a new user
-type RegisterRequest struct {
-	FirstName           string `json:"first_name"`
-	LastName            string `json:"last_name"`
-	Email               string `json:"email"`
-	Password            string `json:"password"`
-	Department          string `json:"department"`
+type GoogleLoginRequest struct {
+	IDToken string `json:"id_token"`
 }
 
-// what we send back after registration
-type RegisterResponse struct {
-	ID                  string `json:"id"`
-	FirstName           string `json:"first_name"`
-	LastName            string `json:"last_name"`
-	Email               string `json:"email"`
-	Department          string `json:"department"`
-	CreatedAt           string `json:"created_at"`
+type LoginResponse struct {
+	Token     string `json:"token"`
+	ID        string `json:"id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Email     string `json:"email"`
+	AvatarURL string `json:"avatar_url,omitempty"`
 }
 
-// what we send back for profile info
+// Keep UserResponse as is
 type UserResponse struct {
 	ID         string `json:"id"`
 	FirstName  string `json:"first_name"`
@@ -27,19 +21,4 @@ type UserResponse struct {
 	Email      string `json:"email"`
 	Department string `json:"department"`
 	CreatedAt  string `json:"created_at"`
-}
-
-// incoming request to login
-type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-// what we send back after login
-type LoginResponse struct {
-	Token     string `json:"token"`
-	ID        string `json:"id"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Email     string `json:"email"`
 }

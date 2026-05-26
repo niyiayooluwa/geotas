@@ -11,50 +11,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createUser = `-- name: CreateUser :one
-INSERT INTO users (
-    email,
-    password_hash,
-    first_name,
-    last_name,
-    department
-) VALUES (
-    $1, $2, $3, $4, $5
-)
-RETURNING id, email, password_hash, first_name, last_name, department, created_at
-`
-
-type CreateUserParams struct {
-	Email        string
-	PasswordHash string
-	FirstName    string
-	LastName     string
-	Department   pgtype.Text
-}
-
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser,
-		arg.Email,
-		arg.PasswordHash,
-		arg.FirstName,
-		arg.LastName,
-		arg.Department,
-	)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.PasswordHash,
-		&i.FirstName,
-		&i.LastName,
-		&i.Department,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, first_name, last_name, department, created_at FROM users
+SELECT id, email, first_name, last_name, department, created_at, google_id, avatar_url FROM users
 WHERE email = $1
 `
 
@@ -64,17 +22,18 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
-		&i.PasswordHash,
 		&i.FirstName,
 		&i.LastName,
 		&i.Department,
 		&i.CreatedAt,
+		&i.GoogleID,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, first_name, last_name, department, created_at FROM users
+SELECT id, email, first_name, last_name, department, created_at, google_id, avatar_url FROM users
 WHERE id = $1
 `
 
@@ -84,11 +43,60 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
-		&i.PasswordHash,
 		&i.FirstName,
 		&i.LastName,
 		&i.Department,
 		&i.CreatedAt,
+		&i.GoogleID,
+		&i.AvatarUrl,
+	)
+	return i, err
+}
+
+const upsertGoogleUser = `-- name: UpsertGoogleUser :one
+INSERT INTO users (
+    email,
+    google_id,
+    first_name,
+    last_name,
+    avatar_url
+) VALUES (
+    $1, $2, $3, $4, $5
+)
+ON CONFLICT (email) DO UPDATE 
+SET google_id = EXCLUDED.google_id, 
+    first_name = EXCLUDED.first_name, 
+    last_name = EXCLUDED.last_name, 
+    avatar_url = EXCLUDED.avatar_url
+RETURNING id, email, first_name, last_name, department, created_at, google_id, avatar_url
+`
+
+type UpsertGoogleUserParams struct {
+	Email     string
+	GoogleID  pgtype.Text
+	FirstName string
+	LastName  string
+	AvatarUrl pgtype.Text
+}
+
+func (q *Queries) UpsertGoogleUser(ctx context.Context, arg UpsertGoogleUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, upsertGoogleUser,
+		arg.Email,
+		arg.GoogleID,
+		arg.FirstName,
+		arg.LastName,
+		arg.AvatarUrl,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.FirstName,
+		&i.LastName,
+		&i.Department,
+		&i.CreatedAt,
+		&i.GoogleID,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
