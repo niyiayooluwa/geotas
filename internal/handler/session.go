@@ -84,7 +84,7 @@ func (h *SessionHandler) GetLiveQRToken(w http.ResponseWriter, r *http.Request) 
 	var userID string = r.Context().Value(middleware.UserIDKey).(string)
 	var sessionID string = chi.URLParam(r, "id")
 
-	token, err := h.sessionService.GetLiveQRToken(r.Context(), userID, sessionID)
+	response, err := h.sessionService.GetLiveQRToken(r.Context(), userID, sessionID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -92,7 +92,5 @@ func (h *SessionHandler) GetLiveQRToken(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
-		"token": token,
-	})
+	json.NewEncoder(w).Encode(response)
 }

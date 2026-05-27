@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/niyiayooluwa/geotas/internal/model"
 	"github.com/niyiayooluwa/geotas/internal/repository"
 )
 
@@ -101,17 +102,19 @@ func (m *QRRotationManager) rotateToken(sessionUUID pgtype.UUID, sessionID strin
 }
 
 // GetCurrentToken returns the latest valid token for a session
-func (m *QRRotationManager) GetCurrentToken(sessionID string) (string, error) {
-	var sessionUUID pgtype.UUID
-	if err := sessionUUID.Scan(sessionID); err != nil {
-		return "", fmt.Errorf("invalid session id")
-	}
+func (m *QRRotationManager) GetCurrentToken(sessionID string) (model.QRTokenResponse, error) {
+    var sessionUUID pgtype.UUID
+    if err := sessionUUID.Scan(sessionID); err != nil {
+        return model.QRTokenResponse{}, fmt.Errorf("invalid session id")
+    }
 
-	// fetch from DB to ensure single source of truth
-	token, err := m.qrRepo.GetLatestQRTokenBySession(context.Background(), sessionUUID)
-	if err != nil {
-		return "", fmt.Errorf("no active token found for session")
-	}
+    token, err := m.qrRepo.GetLatestQRTokenBySession(context.Background(), sessionUUID)
+    if err != nil {
+        return model.QRTokenResponse{}, fmt.Errorf("no active token found for session")
+    }
 
-	return token.Token, nil
+    return model.QRTokenResponse{
+        Token:     token.Token,
+        ExpiresAt: token.ExpiresAt.Time.Format(time.RFC3339),
+    }, nil
 }
