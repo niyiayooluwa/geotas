@@ -132,8 +132,7 @@ SELECT
     ar.os_version,
     u.first_name,
     u.last_name,
-    cm.matriculation_number,
-    u.department
+    cm.matriculation_number
 FROM attendance_records ar
 JOIN users u ON ar.user_id = u.id
 JOIN course_members cm ON cm.user_id = ar.user_id AND cm.course_id = $1
@@ -161,7 +160,6 @@ type GetAttendanceByCourseRow struct {
 	FirstName            string
 	LastName             string
 	MatriculationNumber  pgtype.Text
-	Department           pgtype.Text
 }
 
 func (q *Queries) GetAttendanceByCourse(ctx context.Context, courseID pgtype.UUID) ([]GetAttendanceByCourseRow, error) {
@@ -191,7 +189,6 @@ func (q *Queries) GetAttendanceByCourse(ctx context.Context, courseID pgtype.UUI
 			&i.FirstName,
 			&i.LastName,
 			&i.MatriculationNumber,
-			&i.Department,
 		); err != nil {
 			return nil, err
 		}
@@ -221,8 +218,7 @@ SELECT
     ar.os_version,
     u.first_name,
     u.last_name,
-    cm.matriculation_number,
-    u.department
+    cm.matriculation_number
 FROM attendance_records ar
 JOIN users u ON ar.user_id = u.id
 JOIN sessions s ON ar.session_id = s.id
@@ -249,7 +245,6 @@ type GetAttendanceBySessionRow struct {
 	FirstName            string
 	LastName             string
 	MatriculationNumber  pgtype.Text
-	Department           pgtype.Text
 }
 
 func (q *Queries) GetAttendanceBySession(ctx context.Context, sessionID pgtype.UUID) ([]GetAttendanceBySessionRow, error) {
@@ -279,7 +274,6 @@ func (q *Queries) GetAttendanceBySession(ctx context.Context, sessionID pgtype.U
 			&i.FirstName,
 			&i.LastName,
 			&i.MatriculationNumber,
-			&i.Department,
 		); err != nil {
 			return nil, err
 		}

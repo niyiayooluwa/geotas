@@ -51,6 +51,10 @@ func (r *CourseRepository) GetCourseByInviteCode(ctx context.Context, inviteCode
 	return r.queries.GetCourseByInviteCode(ctx, inviteCode)
 }
 
+func (r *CourseRepository) GetCoursesWithStudentCountByOwner(ctx context.Context, ownerID pgtype.UUID) ([]db.GetCoursesWithStudentCountByOwnerRow, error) {
+    return r.queries.GetCoursesWithStudentCountByOwner(ctx, ownerID)
+}
+
 func (r *CourseRepository) DeleteCourse(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.DeleteCourse(ctx, id)
 }

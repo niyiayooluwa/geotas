@@ -162,30 +162,31 @@ func (s *CourseService) JoinCourse(ctx context.Context, userID string, req model
 }
 
 func (s *CourseService) GetCoursesByOwner(ctx context.Context, userID string) ([]model.CourseResponse, error) {
-	ownerID, err := parseUUID(userID)
-	if err != nil {
-		return nil, err
-	}
+    ownerID, err := parseUUID(userID)
+    if err != nil {
+        return nil, err
+    }
 
-	courses, err := s.courseRepo.GetCoursesByOwner(ctx, ownerID)
-	if err != nil {
-		return nil, errors.New("could not fetch courses")
-	}
+    courses, err := s.courseRepo.GetCoursesWithStudentCountByOwner(ctx, ownerID)
+    if err != nil {
+        return nil, errors.New("could not fetch courses")
+    }
 
-	var response []model.CourseResponse
-	for _, course := range courses {
-		response = append(response, model.CourseResponse{
-			ID:         course.ID.String(),
-			OwnerID:    course.OwnerID.String(),
-			Title:      course.Title,
-			Code:       course.Code,
-			InviteCode: course.InviteCode,
-			Department: course.Department.String,
-			CreatedAt:  course.CreatedAt.Time.Format("2006-01-02 15:04:05"),
-		})
-	}
+    var response []model.CourseResponse
+    for _, course := range courses {
+        response = append(response, model.CourseResponse{
+            ID:           course.ID.String(),
+            OwnerID:      course.OwnerID.String(),
+            Title:        course.Title,
+            Code:         course.Code,
+            InviteCode:   course.InviteCode,
+            Department:   course.Department.String,
+            StudentCount: course.StudentCount,
+            CreatedAt:    course.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+        })
+    }
 
-	return response, nil
+    return response, nil
 }
 
 func (s *CourseService) DeleteCourse(ctx context.Context, userID string, courseID string) error {

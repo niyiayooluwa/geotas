@@ -44,3 +44,13 @@ SELECT
 FROM course_members cm
 JOIN courses c ON cm.course_id = c.id
 WHERE cm.user_id = $1;
+
+-- name: GetCoursesWithStudentCountByOwner :many
+SELECT
+    c.*,
+    COUNT(cm.id) FILTER (WHERE cm.role = 'student') AS student_count
+FROM courses c
+LEFT JOIN course_members cm ON cm.course_id = c.id
+WHERE c.owner_id = $1
+GROUP BY c.id
+ORDER BY c.created_at DESC;

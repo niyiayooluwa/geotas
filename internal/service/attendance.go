@@ -188,7 +188,6 @@ func (s *AttendanceService) GetAttendanceBySession(ctx context.Context, userID, 
 			FirstName:            r.FirstName,
 			LastName:             r.LastName,
 			MatriculationNumber:  r.MatriculationNumber.String,
-			Department:           r.Department.String,
 		})
 	}
 

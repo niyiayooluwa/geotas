@@ -9,13 +9,14 @@ type CreateCourseRequest struct {
 
 // what we send back after creating a course
 type CourseResponse struct {
-	ID         string `json:"id"`
-	OwnerID    string `json:"owner_id"`
-	Title      string `json:"title"`
-	Code       string `json:"code"`
-	InviteCode string `json:"invite_code"`
-	Department string `json:"department"`
-	CreatedAt  string `json:"created_at"`
+    ID           string `json:"id"`
+    OwnerID      string `json:"owner_id"`
+    Title        string `json:"title"`
+    Code         string `json:"code"`
+    InviteCode   string `json:"invite_code"`
+    Department   string `json:"department"`
+    StudentCount int64  `json:"student_count"`
+    CreatedAt    string `json:"created_at"`
 }
 
 // incoming request to join a course

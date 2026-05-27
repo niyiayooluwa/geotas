@@ -213,3 +213,54 @@ func (q *Queries) GetCoursesByOwner(ctx context.Context, ownerID pgtype.UUID) ([
 	}
 	return items, nil
 }
+
+const getCoursesWithStudentCountByOwner = `-- name: GetCoursesWithStudentCountByOwner :many
+SELECT
+    c.id, c.owner_id, c.title, c.code, c.department, c.created_at, c.invite_code,
+    COUNT(cm.id) FILTER (WHERE cm.role = 'student') AS student_count
+FROM courses c
+LEFT JOIN course_members cm ON cm.course_id = c.id
+WHERE c.owner_id = $1
+GROUP BY c.id
+ORDER BY c.created_at DESC
+`
+
+type GetCoursesWithStudentCountByOwnerRow struct {
+	ID           pgtype.UUID
+	OwnerID      pgtype.UUID
+	Title        string
+	Code         string
+	Department   pgtype.Text
+	CreatedAt    pgtype.Timestamptz
+	InviteCode   string
+	StudentCount int64
+}
+
+func (q *Queries) GetCoursesWithStudentCountByOwner(ctx context.Context, ownerID pgtype.UUID) ([]GetCoursesWithStudentCountByOwnerRow, error) {
+	rows, err := q.db.Query(ctx, getCoursesWithStudentCountByOwner, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetCoursesWithStudentCountByOwnerRow
+	for rows.Next() {
+		var i GetCoursesWithStudentCountByOwnerRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OwnerID,
+			&i.Title,
+			&i.Code,
+			&i.Department,
+			&i.CreatedAt,
+			&i.InviteCode,
+			&i.StudentCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

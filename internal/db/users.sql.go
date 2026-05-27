@@ -12,7 +12,7 @@ import (
 )
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, first_name, last_name, department, created_at, google_id, avatar_url FROM users
+SELECT id, email, first_name, last_name, created_at, google_id, avatar_url FROM users
 WHERE email = $1
 `
 
@@ -24,7 +24,6 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Email,
 		&i.FirstName,
 		&i.LastName,
-		&i.Department,
 		&i.CreatedAt,
 		&i.GoogleID,
 		&i.AvatarUrl,
@@ -33,7 +32,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, first_name, last_name, department, created_at, google_id, avatar_url FROM users
+SELECT id, email, first_name, last_name, created_at, google_id, avatar_url FROM users
 WHERE id = $1
 `
 
@@ -45,7 +44,6 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.Email,
 		&i.FirstName,
 		&i.LastName,
-		&i.Department,
 		&i.CreatedAt,
 		&i.GoogleID,
 		&i.AvatarUrl,
@@ -68,7 +66,7 @@ SET google_id = EXCLUDED.google_id,
     first_name = EXCLUDED.first_name, 
     last_name = EXCLUDED.last_name, 
     avatar_url = EXCLUDED.avatar_url
-RETURNING id, email, first_name, last_name, department, created_at, google_id, avatar_url
+RETURNING id, email, first_name, last_name, created_at, google_id, avatar_url
 `
 
 type UpsertGoogleUserParams struct {
@@ -93,7 +91,6 @@ func (q *Queries) UpsertGoogleUser(ctx context.Context, arg UpsertGoogleUserPara
 		&i.Email,
 		&i.FirstName,
 		&i.LastName,
-		&i.Department,
 		&i.CreatedAt,
 		&i.GoogleID,
 		&i.AvatarUrl,
