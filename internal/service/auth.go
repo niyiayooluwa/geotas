@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -25,6 +26,7 @@ func NewAuthService(userRepo *repository.UserRepository) *AuthService {
 
 func (s *AuthService) GoogleLogin(ctx context.Context, req model.GoogleLoginRequest) (model.LoginResponse, error) {
 	clientID := os.Getenv("GOOGLE_CLIENT_ID")
+	log.Printf("Validating Google ID token for client ID: %s", clientID)
 
 	// 1. Verify token with Google
 	payload, err := idtoken.Validate(ctx, req.IDToken, clientID)
