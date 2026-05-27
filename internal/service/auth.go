@@ -100,17 +100,22 @@ func (s *AuthService) GetUserByID(ctx context.Context, userID string) (db.User, 
 }
 
 func (s *AuthService) GetUserProfile(ctx context.Context, userID string) (model.UserResponse, error) {
-	user, err := s.GetUserByID(ctx, userID)
-	if err != nil {
-		return model.UserResponse{}, err
-	}
+    user, err := s.GetUserByID(ctx, userID)
+    if err != nil {
+        return model.UserResponse{}, err
+    }
 
-	return model.UserResponse{
-		ID:         user.ID.String(),
-		FirstName:  user.FirstName,
-		LastName:   user.LastName,
-		Email:      user.Email,
-		Department: user.Department.String,
-		CreatedAt:  user.CreatedAt.Time.Format(time.RFC3339),
-	}, nil
+    var avatarURL *string
+    if user.AvatarUrl.Valid {
+        avatarURL = &user.AvatarUrl.String
+    }
+
+    return model.UserResponse{
+        ID:        user.ID.String(),
+        FirstName: user.FirstName,
+        LastName:  user.LastName,
+        Email:     user.Email,
+        AvatarURL: avatarURL,
+        CreatedAt: user.CreatedAt.Time.Format(time.RFC3339),
+    }, nil
 }
