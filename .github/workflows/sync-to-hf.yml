@@ -29,4 +29,4 @@ jobs:
 
           git remote add hf https://niyiayooluwa:$HF_TOKEN@huggingface.co/spaces/niyiayooluwa/geotas
 
-          git push hf main --force
+          git push hf master:main --force
