@@ -100,3 +100,30 @@ func (h *CourseHandler) GetEnrolledCourses(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
+
+func (h *CourseHandler) LeaveCourse(w http.ResponseWriter, r *http.Request) {
+	var userID string = r.Context().Value(middleware.UserIDKey).(string)
+	var courseID string = chi.URLParam(r, "id")
+
+	if err := h.courseService.LeaveCourse(r.Context(), userID, courseID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *CourseHandler) GetCourseAttendance(w http.ResponseWriter, r *http.Request) {
+	var userID string = r.Context().Value(middleware.UserIDKey).(string)
+	var courseID string = chi.URLParam(r, "id")
+
+	response, err := h.courseService.GetCourseAttendance(r.Context(), userID, courseID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}

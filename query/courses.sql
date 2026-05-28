@@ -40,10 +40,17 @@ SELECT
     c.invite_code,
     c.created_at,
     cm.role,
-    cm.matriculation_number
+    cm.matriculation_number,
+    COUNT(cm2.id) FILTER (WHERE cm2.role = 'student') AS student_count
 FROM course_members cm
 JOIN courses c ON cm.course_id = c.id
-WHERE cm.user_id = $1;
+LEFT JOIN course_members cm2 ON cm2.course_id = c.id
+WHERE cm.user_id = $1
+GROUP BY 
+    c.id, 
+    cm.role, 
+    cm.matriculation_number
+ORDER BY c.created_at DESC;
 
 -- name: GetCoursesWithStudentCountByOwner :many
 SELECT

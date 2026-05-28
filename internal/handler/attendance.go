@@ -96,4 +96,3 @@ func (h *AttendanceHandler) GetAttendanceBySession(w http.ResponseWriter, r *htt
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
-

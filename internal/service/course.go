@@ -281,6 +281,7 @@ func (s *CourseService) GetCoursesByMember(ctx context.Context, userID string) (
 			CreatedAt:           c.CreatedAt.Time.Format("2006-01-02 15:04:05"),
 			Role:                c.Role,
 			MatriculationNumber: c.MatriculationNumber.String,
+			StudentCount:        c.StudentCount,
 		})
 	}
 

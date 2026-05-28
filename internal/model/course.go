@@ -45,4 +45,5 @@ type MemberCourseResponse struct {
 	CreatedAt           string `json:"created_at"`
 	Role                string `json:"role"`
 	MatriculationNumber string `json:"matriculation_number"`
+	StudentCount        int64  `json:"student_count"` // Add this line
 }

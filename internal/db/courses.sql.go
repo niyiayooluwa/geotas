@@ -133,10 +133,17 @@ SELECT
     c.invite_code,
     c.created_at,
     cm.role,
-    cm.matriculation_number
+    cm.matriculation_number,
+    COUNT(cm2.id) FILTER (WHERE cm2.role = 'student') AS student_count
 FROM course_members cm
 JOIN courses c ON cm.course_id = c.id
+LEFT JOIN course_members cm2 ON cm2.course_id = c.id
 WHERE cm.user_id = $1
+GROUP BY 
+    c.id, 
+    cm.role, 
+    cm.matriculation_number
+ORDER BY c.created_at DESC
 `
 
 type GetCoursesByMemberRow struct {
@@ -149,6 +156,7 @@ type GetCoursesByMemberRow struct {
 	CreatedAt           pgtype.Timestamptz
 	Role                string
 	MatriculationNumber pgtype.Text
+	StudentCount        int64
 }
 
 func (q *Queries) GetCoursesByMember(ctx context.Context, userID pgtype.UUID) ([]GetCoursesByMemberRow, error) {
@@ -170,6 +178,7 @@ func (q *Queries) GetCoursesByMember(ctx context.Context, userID pgtype.UUID) ([
 			&i.CreatedAt,
 			&i.Role,
 			&i.MatriculationNumber,
+			&i.StudentCount,
 		); err != nil {
 			return nil, err
 		}

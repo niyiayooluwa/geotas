@@ -26,7 +26,7 @@ func NewRouter(queries *db.Queries, authService *service.AuthService) *chi.Mux {
 	var otpRepo *repository.OTPRepository = repository.NewOTPRepository(queries)
 
 	// wire up services
-	var courseService *service.CourseService = service.NewCourseService(courseRepo)
+	var courseService *service.CourseService = service.NewCourseService(courseRepo, sessionRepo, attendanceRepo)
 	var qrManager *service.QRRotationManager = service.NewQRRotationManager(qrRepo)
 	var sessionService *service.SessionService = service.NewSessionService(sessionRepo, courseRepo, qrManager)
 	var otpService *service.OTPService = service.NewOTPService(otpRepo, sessionRepo, courseRepo)
@@ -54,6 +54,8 @@ func NewRouter(queries *db.Queries, authService *service.AuthService) *chi.Mux {
 		r.Post("/courses/join", courseHandler.JoinCourse)
 		r.Get("/courses", courseHandler.GetMyCourses)
 		r.Delete("/courses/{id}", courseHandler.DeleteCourse)
+		r.Delete("/courses/{id}/leave", courseHandler.LeaveCourse) 
+		r.Get("/courses/{id}/attendance", courseHandler.GetCourseAttendance)
 		r.Get("/courses/enrolled", courseHandler.GetEnrolledCourses)
 
 		r.Post("/sessions", sessionHandler.CreateSession)
