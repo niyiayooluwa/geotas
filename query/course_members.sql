@@ -1,3 +1,4 @@
+
 -- name: AddCourseMember :one
 INSERT INTO course_members (
     course_id,
@@ -8,11 +9,15 @@ INSERT INTO course_members (
     $1, $2, $3, $4
 )
 RETURNING *;
-
+ 
 -- name: GetCourseMembersByCourse :many
 SELECT * FROM course_members
 WHERE course_id = $1;
-
+ 
 -- name: GetCourseMember :one
 SELECT * FROM course_members
+WHERE course_id = $1 AND user_id = $2;
+ 
+-- name: RemoveCourseMember :exec
+DELETE FROM course_members
 WHERE course_id = $1 AND user_id = $2;

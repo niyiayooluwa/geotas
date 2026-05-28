@@ -114,6 +114,24 @@ func (q *Queries) CreateAttendanceRecord(ctx context.Context, arg CreateAttendan
 	return i, err
 }
 
+const deleteAttendanceRecordsByUserAndCourse = `-- name: DeleteAttendanceRecordsByUserAndCourse :exec
+DELETE FROM attendance_records
+WHERE user_id = $1
+AND session_id IN (
+    SELECT id FROM sessions WHERE course_id = $2
+)
+`
+
+type DeleteAttendanceRecordsByUserAndCourseParams struct {
+	UserID   pgtype.UUID
+	CourseID pgtype.UUID
+}
+
+func (q *Queries) DeleteAttendanceRecordsByUserAndCourse(ctx context.Context, arg DeleteAttendanceRecordsByUserAndCourseParams) error {
+	_, err := q.db.Exec(ctx, deleteAttendanceRecordsByUserAndCourse, arg.UserID, arg.CourseID)
+	return err
+}
+
 const getAttendanceByCourse = `-- name: GetAttendanceByCourse :many
 SELECT
     ar.id,

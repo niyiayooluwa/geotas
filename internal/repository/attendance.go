@@ -51,3 +51,10 @@ func (r *AttendanceRepository) GetPrimaryDeviceForUser(ctx context.Context, user
 	}
 	return deviceID.String, nil
 }
+
+func (r *AttendanceRepository) DeleteAttendanceRecordsByUserAndCourse(ctx context.Context, userID pgtype.UUID, courseID pgtype.UUID) error {
+	return r.queries.DeleteAttendanceRecordsByUserAndCourse(ctx, db.DeleteAttendanceRecordsByUserAndCourseParams{
+		UserID:   userID,
+		CourseID: courseID,
+	})
+}

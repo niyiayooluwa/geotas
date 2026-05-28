@@ -104,3 +104,18 @@ func (q *Queries) GetCourseMembersByCourse(ctx context.Context, courseID pgtype.
 	}
 	return items, nil
 }
+
+const removeCourseMember = `-- name: RemoveCourseMember :exec
+DELETE FROM course_members
+WHERE course_id = $1 AND user_id = $2
+`
+
+type RemoveCourseMemberParams struct {
+	CourseID pgtype.UUID
+	UserID   pgtype.UUID
+}
+
+func (q *Queries) RemoveCourseMember(ctx context.Context, arg RemoveCourseMemberParams) error {
+	_, err := q.db.Exec(ctx, removeCourseMember, arg.CourseID, arg.UserID)
+	return err
+}

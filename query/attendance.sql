@@ -89,3 +89,10 @@ AND device_id IS NOT NULL
 GROUP BY device_id
 ORDER BY COUNT(*) DESC
 LIMIT 1;
+
+-- name: DeleteAttendanceRecordsByUserAndCourse :exec
+DELETE FROM attendance_records
+WHERE user_id = $1
+AND session_id IN (
+    SELECT id FROM sessions WHERE course_id = $2
+);
