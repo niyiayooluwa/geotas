@@ -23,4 +23,4 @@ jobs:
           git config --global user.name "GitHub Action"
           git rm --cached README.md
           git remote add hf https://niyiayooluwa:$HF_TOKEN@huggingface.co/spaces/niyiayooluwa/geotas
-          git push hf master:main
+          git push hf master:main --force
