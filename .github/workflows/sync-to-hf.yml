@@ -1,4 +1,3 @@
-# .github/workflows/sync-to-hf.yml
 name: Sync to HuggingFace Space
 
 on:
@@ -16,17 +15,12 @@ jobs:
           fetch-depth: 0
           lfs: true
 
-      - name: Remove files that should not sync
-        run: |
-          rm -f README.md
-
       - name: Push to HuggingFace Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           git config --global user.email "you@example.com"
           git config --global user.name "GitHub Action"
-
+          git rm --cached README.md
           git remote add hf https://niyiayooluwa:$HF_TOKEN@huggingface.co/spaces/niyiayooluwa/geotas
-
-          git push hf master:main --force
+          git push hf master:main
