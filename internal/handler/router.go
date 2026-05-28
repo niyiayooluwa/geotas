@@ -11,15 +11,14 @@ import (
 	"github.com/niyiayooluwa/geotas/internal/service"
 )
 
-func NewRouter(queries *db.Queries) *chi.Mux {
+func NewRouter(queries *db.Queries, authService *service.AuthService) *chi.Mux {
 	var router *chi.Mux = chi.NewRouter()
 
 	router.Use(chiMiddleware.Logger)
 	router.Use(chiMiddleware.Recoverer)
-	router.Use(chiMiddleware.Compress(5)) // add this
+	router.Use(chiMiddleware.Compress(5))
 
 	// wire up repositories
-	var userRepo *repository.UserRepository = repository.NewUserRepository(queries)
 	var courseRepo *repository.CourseRepository = repository.NewCourseRepository(queries)
 	var qrRepo *repository.QRTokenRepository = repository.NewQRTokenRepository(queries)
 	var sessionRepo *repository.SessionRepository = repository.NewSessionRepository(queries)
@@ -27,7 +26,6 @@ func NewRouter(queries *db.Queries) *chi.Mux {
 	var otpRepo *repository.OTPRepository = repository.NewOTPRepository(queries)
 
 	// wire up services
-	var authService *service.AuthService = service.NewAuthService(userRepo)
 	var courseService *service.CourseService = service.NewCourseService(courseRepo)
 	var qrManager *service.QRRotationManager = service.NewQRRotationManager(qrRepo)
 	var sessionService *service.SessionService = service.NewSessionService(sessionRepo, courseRepo, qrManager)
@@ -46,22 +44,18 @@ func NewRouter(queries *db.Queries) *chi.Mux {
 		w.Write([]byte("GEOTAS is alive"))
 	})
 
-	// public routes
 	router.Post("/auth/google", authHandler.GoogleLogin)
 
-	// protected routes
 	router.Group(func(r chi.Router) {
 		r.Use(middleware.AuthMiddleWare)
 		r.Get("/me", userHandler.Me)
 
-		// course routes
 		r.Post("/courses", courseHandler.CreateCourse)
 		r.Post("/courses/join", courseHandler.JoinCourse)
 		r.Get("/courses", courseHandler.GetMyCourses)
 		r.Delete("/courses/{id}", courseHandler.DeleteCourse)
 		r.Get("/courses/enrolled", courseHandler.GetEnrolledCourses)
 
-		// session routes
 		r.Post("/sessions", sessionHandler.CreateSession)
 		r.Get("/courses/{courseId}/sessions", sessionHandler.GetSessionsByCourse)
 		r.Patch("/sessions/{id}/close", sessionHandler.CloseSession)
@@ -69,11 +63,9 @@ func NewRouter(queries *db.Queries) *chi.Mux {
 		r.Get("/sessions/{id}/qr-token", sessionHandler.GetLiveQRToken)
 		r.Get("/sessions/{id}/attendance", attendanceHandler.GetAttendanceBySession)
 
-		// attendance routes
 		r.Post("/attendance/qr", attendanceHandler.MarkAttendanceQR)
 		r.Post("/attendance/otp/request", attendanceHandler.RequestOTP)
 		r.Post("/attendance/otp/verify", attendanceHandler.MarkAttendanceOTP)
-
 	})
 
 	return router

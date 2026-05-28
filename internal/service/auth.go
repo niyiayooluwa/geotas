@@ -3,48 +3,46 @@ package service
 import (
 	"context"
 	"errors"
-	"log"
-	"os"
 	"strings"
 	"time"
 
+	firebaseAuth "firebase.google.com/go/v4/auth"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/niyiayooluwa/geotas/internal/db"
 	"github.com/niyiayooluwa/geotas/internal/model"
 	"github.com/niyiayooluwa/geotas/internal/repository"
-	"google.golang.org/api/idtoken"
+	"os"
 )
 
 type AuthService struct {
-	userRepo *repository.UserRepository
+	userRepo     *repository.UserRepository
+	firebaseAuth *firebaseAuth.Client
 }
 
-func NewAuthService(userRepo *repository.UserRepository) *AuthService {
-	return &AuthService{userRepo: userRepo}
+func NewAuthService(userRepo *repository.UserRepository, firebaseAuth *firebaseAuth.Client) *AuthService {
+	return &AuthService{
+		userRepo:     userRepo,
+		firebaseAuth: firebaseAuth,
+	}
 }
 
 func (s *AuthService) GoogleLogin(ctx context.Context, req model.GoogleLoginRequest) (model.LoginResponse, error) {
-	clientID := os.Getenv("GOOGLE_CLIENT_ID")
-	log.Printf("Validating Google ID token for client ID: %s", clientID)
-
-	// 1. Verify token with Google
-	payload, err := idtoken.Validate(ctx, req.IDToken, clientID)
+	// 1. Verify Firebase ID token
+	token, err := s.firebaseAuth.VerifyIDToken(ctx, req.IDToken)
 	if err != nil {
 		return model.LoginResponse{}, errors.New("invalid Google token")
 	}
 
-	// 2. Safely extract claims
-	googleID := payload.Subject
-	email, _ := payload.Claims["email"].(string)
-	avatarURL, _ := payload.Claims["picture"].(string)
+	// 2. Extract claims
+	email, _     := token.Claims["email"].(string)
+	avatarURL, _ := token.Claims["picture"].(string)
+	firstName, _ := token.Claims["given_name"].(string)
+	lastName, _  := token.Claims["family_name"].(string)
+	googleID     := token.UID
 
-	// Google's payload structure can vary slightly depending on the user's profile
-	firstName, _ := payload.Claims["given_name"].(string)
-	lastName, _ := payload.Claims["family_name"].(string)
-	
 	if firstName == "" {
-		name, _ := payload.Claims["name"].(string)
+		name, _ := token.Claims["name"].(string)
 		parts := strings.SplitN(name, " ", 2)
 		firstName = parts[0]
 		if len(parts) > 1 {
@@ -74,8 +72,8 @@ func (s *AuthService) GoogleLogin(ctx context.Context, req model.GoogleLoginRequ
 		},
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedToken, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signedToken, err := jwtToken.SignedString([]byte(os.Getenv("JWT_SECRET")))
 	if err != nil {
 		return model.LoginResponse{}, errors.New("could not generate token")
 	}
@@ -90,7 +88,6 @@ func (s *AuthService) GoogleLogin(ctx context.Context, req model.GoogleLoginRequ
 	}, nil
 }
 
-// Keep GetUserByID and GetUserProfile exactly as they were
 func (s *AuthService) GetUserByID(ctx context.Context, userID string) (db.User, error) {
 	var uuid pgtype.UUID
 	if err := uuid.Scan(userID); err != nil {
@@ -100,22 +97,22 @@ func (s *AuthService) GetUserByID(ctx context.Context, userID string) (db.User, 
 }
 
 func (s *AuthService) GetUserProfile(ctx context.Context, userID string) (model.UserResponse, error) {
-    user, err := s.GetUserByID(ctx, userID)
-    if err != nil {
-        return model.UserResponse{}, err
-    }
+	user, err := s.GetUserByID(ctx, userID)
+	if err != nil {
+		return model.UserResponse{}, err
+	}
 
-    var avatarURL *string
-    if user.AvatarUrl.Valid {
-        avatarURL = &user.AvatarUrl.String
-    }
+	var avatarURL *string
+	if user.AvatarUrl.Valid {
+		avatarURL = &user.AvatarUrl.String
+	}
 
-    return model.UserResponse{
-        ID:        user.ID.String(),
-        FirstName: user.FirstName,
-        LastName:  user.LastName,
-        Email:     user.Email,
-        AvatarURL: avatarURL,
-        CreatedAt: user.CreatedAt.Time.Format(time.RFC3339),
-    }, nil
+	return model.UserResponse{
+		ID:        user.ID.String(),
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Email:     user.Email,
+		AvatarURL: avatarURL,
+		CreatedAt: user.CreatedAt.Time.Format(time.RFC3339),
+	}, nil
 }
