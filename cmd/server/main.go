@@ -16,7 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	// godotenv is a library used to load environment variables from a .env file into the application's environment.
 	"github.com/joho/godotenv"
-	
+
 	// db contains the auto-generated code for interacting with the database.
 	"github.com/niyiayooluwa/geotas/internal/db"
 	// handler contains the code that handles incoming HTTP requests (the "controllers").
@@ -28,22 +28,27 @@ func main() {
 	// 1. Load Configuration
 	// We read settings from a '.env' file. This file usually contains secrets and configurations
 	// like the database password and the port the server should run on, which shouldn't be in the code directly.
+	//  SAFE FOR PRODUCTION
+	// godotenv.Load() returns an error if the file doesn't exist.
+	// We log it as an info message, NOT a fatal crash.
 	if err := godotenv.Load(); err != nil {
-		// If the .env file is missing or cannot be read, log a fatal error and stop the program.
-		log.Fatal("Error loading .env file")
+		log.Println("Note: No .env file found. Reading credentials from system environment variables.")
 	}
 
 	// 2. Connect to the Database
 	// We retrieve the 'DATABASE_URL' environment variable, which tells us how to connect to our PostgreSQL database (Neon).
-	var dbURL string = os.Getenv("DATABASE_URL")
-	
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		log.Fatal("Fatal Error: DATABASE_URL environment variable is completely empty or missing.")
+	}
+
 	// Create a new connection pool using the provided URL. A connection pool manages multiple simultaneous database connections.
 	conn, err := pgxpool.New(context.Background(), dbURL)
 	if err != nil {
 		// If we can't create the connection pool (e.g., wrong password, database is down), stop the program.
 		log.Fatalf("Unable to connect to database: %v\n", err)
 	}
-	
+
 	// 'defer' ensures that the connection pool is properly closed when the main function finishes running,
 	// even if an error occurs later on. This prevents memory leaks.
 	defer conn.Close()
@@ -63,7 +68,7 @@ func main() {
 	var queries *db.Queries = db.New(conn)
 
 	// 5. Set Up the Router
-	// The router is responsible for taking an incoming web request (e.g., a GET request to "/users") 
+	// The router is responsible for taking an incoming web request (e.g., a GET request to "/users")
 	// and directing it to the correct piece of code (handler) to process it.
 	// We pass the 'queries' object to the router so that the handlers can access the database.
 	var router = handler.NewRouter(queries)
@@ -73,7 +78,7 @@ func main() {
 	var port string = os.Getenv("PORT")
 	// Print a message indicating the server is starting.
 	fmt.Printf("🚀 GEOTAS server running on port %s\n", port)
-	
+
 	// http.ListenAndServe starts the web server on the specified port, using our configured router.
 	// This function runs continuously and only returns an error if the server crashes.
 	// We wrap it in log.Fatal so that if it does crash, the error is logged and the program exits.
