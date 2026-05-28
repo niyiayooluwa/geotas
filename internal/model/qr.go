@@ -1,6 +1,13 @@
 package model
 
-type QRTokenResponse struct {
+// QRPayload is what gets JSON-encoded into the QR code itself
+type QRPayload struct {
 	Token     string `json:"token"`
-	ExpiresAt string `json:"expires_at"` // RFC3339, Flutter parses this
+	SessionID string `json:"session_id"`
+	CourseID  string `json:"course_id"`
+}
+
+type QRTokenResponse struct {
+	QRContent string `json:"qr_content"` // JSON string — encode this into the QR
+	ExpiresAt string `json:"expires_at"` // RFC3339
 }

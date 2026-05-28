@@ -195,7 +195,7 @@ func (s *SessionService) GetLiveQRToken(ctx context.Context, userID string, sess
         return model.QRTokenResponse{}, errors.New("You do not own this session")
     }
 
-    return s.qrManager.GetCurrentToken(sessionID)
+    return s.qrManager.GetCurrentToken(sessionID, session.CourseID.String())
 }
 
 func (s *SessionService) DeleteSession(ctx context.Context, userID string, sessionID string) error {

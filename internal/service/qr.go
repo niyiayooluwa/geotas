@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"sync"
@@ -102,19 +103,30 @@ func (m *QRRotationManager) rotateToken(sessionUUID pgtype.UUID, sessionID strin
 }
 
 // GetCurrentToken returns the latest valid token for a session
-func (m *QRRotationManager) GetCurrentToken(sessionID string) (model.QRTokenResponse, error) {
+func (m *QRRotationManager) GetCurrentToken(sessionID string, courseID string) (model.QRTokenResponse, error) {
     var sessionUUID pgtype.UUID
     if err := sessionUUID.Scan(sessionID); err != nil {
-        return model.QRTokenResponse{}, fmt.Errorf("invalid session id")
+        return model.QRTokenResponse{}, fmt.Errorf("Invalid Session ID")
     }
 
     token, err := m.qrRepo.GetLatestQRTokenBySession(context.Background(), sessionUUID)
     if err != nil {
-        return model.QRTokenResponse{}, fmt.Errorf("no active token found for session")
+        return model.QRTokenResponse{}, fmt.Errorf("No active token found for session")
     }
 
+	payload:= model.QRPayload{
+		Token: token.Token,
+		SessionID: sessionID,
+		CourseID: courseID,
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return model.QRTokenResponse{}, fmt.Errorf("Failed to encode QR payload")
+	}
+
     return model.QRTokenResponse{
-        Token:     token.Token,
-        ExpiresAt: token.ExpiresAt.Time.Format(time.RFC3339),
-    }, nil
+		QRContent: string(payloadBytes),
+		ExpiresAt: token.ExpiresAt.Time.Format(time.RFC3339),
+	}, nil
 }
