@@ -50,13 +50,16 @@ func NewRouter(queries *db.Queries, authService *service.AuthService) *chi.Mux {
 		r.Use(middleware.AuthMiddleWare)
 		r.Get("/me", userHandler.Me)
 
+		// static course routes must come before wildcard {id} routes
 		r.Post("/courses", courseHandler.CreateCourse)
-		r.Post("/courses/join", courseHandler.JoinCourse)
 		r.Get("/courses", courseHandler.GetMyCourses)
+		r.Post("/courses/join", courseHandler.JoinCourse)
+		r.Get("/courses/enrolled", courseHandler.GetEnrolledCourses) // must be above /{id}
+
+		// wildcard course routes
 		r.Delete("/courses/{id}", courseHandler.DeleteCourse)
-		r.Delete("/courses/{id}/leave", courseHandler.LeaveCourse) 
+		r.Delete("/courses/{id}/leave", courseHandler.LeaveCourse)
 		r.Get("/courses/{id}/attendance", courseHandler.GetCourseAttendance)
-		r.Get("/courses/enrolled", courseHandler.GetEnrolledCourses)
 
 		r.Post("/sessions", sessionHandler.CreateSession)
 		r.Get("/courses/{courseId}/sessions", sessionHandler.GetSessionsByCourse)
