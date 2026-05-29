@@ -124,7 +124,7 @@ func (q *Queries) GetCourseByInviteCode(ctx context.Context, inviteCode string) 
 }
 
 const getCoursesByMember = `-- name: GetCoursesByMember :many
-SELECT 
+SELECT
     c.id,
     c.owner_id,
     c.title,
@@ -134,15 +134,12 @@ SELECT
     c.created_at,
     cm.role,
     cm.matriculation_number,
-    COUNT(cm2.id) FILTER (WHERE cm2.role = 'student') AS student_count
+    COUNT(all_members.id) FILTER (WHERE all_members.role = 'student') AS student_count
 FROM course_members cm
 JOIN courses c ON cm.course_id = c.id
-LEFT JOIN course_members cm2 ON cm2.course_id = c.id
+LEFT JOIN course_members all_members ON all_members.course_id = c.id
 WHERE cm.user_id = $1
-GROUP BY 
-    c.id, 
-    cm.role, 
-    cm.matriculation_number
+GROUP BY c.id, c.owner_id, c.title, c.code, c.department, c.invite_code, c.created_at, cm.role, cm.matriculation_number
 ORDER BY c.created_at DESC
 `
 
