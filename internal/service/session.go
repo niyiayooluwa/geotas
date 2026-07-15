@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -11,16 +12,18 @@ import (
 )
 
 type SessionService struct {
-	sessionRepo *repository.SessionRepository
-	courseRepo  *repository.CourseRepository
-	qrManager   *QRRotationManager
+	sessionRepo  *repository.SessionRepository
+	courseRepo   *repository.CourseRepository
+	qrManager    *QRRotationManager
+	notifService *NotificationService
 }
 
-func NewSessionService(sessionRepo *repository.SessionRepository, courseRepo *repository.CourseRepository, qrManager *QRRotationManager) *SessionService {
+func NewSessionService(sessionRepo *repository.SessionRepository, courseRepo *repository.CourseRepository, qrManager *QRRotationManager, notifService *NotificationService) *SessionService {
 	return &SessionService{
-		sessionRepo: sessionRepo,
-		courseRepo:  courseRepo,
-		qrManager:   qrManager,
+		sessionRepo:  sessionRepo,
+		courseRepo:   courseRepo,
+		qrManager:    qrManager,
+		notifService: notifService,
 	}
 }
 
@@ -90,6 +93,13 @@ func (s *SessionService) CreateSession(ctx context.Context, userID string, req m
 	}
 
 	s.qrManager.StartRotation(session.ID.String(), session.QrRotationSecs)
+
+	// Trigger Notification
+	payload, _ := json.Marshal(map[string]string{
+		"session_id": session.ID.String(),
+		"title":      req.Title,
+	})
+	_ = s.notifService.CreateNotificationsForCourseMembers(ctx, courseID.String(), "session_starting", payload)
 
 	return buildSessionResponse(session), nil
 }

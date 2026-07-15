@@ -91,6 +91,16 @@ type CourseMember struct {
 	CoLecturer          bool
 }
 
+type Notification struct {
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
+	CourseID  pgtype.UUID
+	Type      string
+	Payload   []byte
+	SeenAt    pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
+}
+
 type OtpCode struct {
 	ID        pgtype.UUID
 	SessionID pgtype.UUID
@@ -108,6 +118,17 @@ type QrToken struct {
 	IssuedAt  pgtype.Timestamptz
 	ExpiresAt pgtype.Timestamptz
 	Used      bool
+}
+
+type Schedule struct {
+	ID        pgtype.UUID
+	CourseID  pgtype.UUID
+	DayOfWeek int32
+	StartTime pgtype.Time
+	EndTime   pgtype.Time
+	Venue     string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
 }
 
 type Session struct {

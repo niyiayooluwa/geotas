@@ -34,11 +34,15 @@ func NewRouter(queries *db.Queries, authService *service.AuthService) *chi.Mux {
 	var sessionRepo *repository.SessionRepository = repository.NewSessionRepository(queries)
 	var attendanceRepo *repository.AttendanceRepository = repository.NewAttendanceRepository(queries)
 	var otpRepo *repository.OTPRepository = repository.NewOTPRepository(queries)
+	var notifRepo *repository.NotificationRepository = repository.NewNotificationRepository(queries)
+	var scheduleRepo *repository.ScheduleRepository = repository.NewScheduleRepository(queries)
 
 	// wire up services
+	var notifService *service.NotificationService = service.NewNotificationService(notifRepo)
+	var scheduleService *service.ScheduleService = service.NewScheduleService(scheduleRepo, courseRepo, notifService)
 	var courseService *service.CourseService = service.NewCourseService(courseRepo, sessionRepo, attendanceRepo)
 	var qrManager *service.QRRotationManager = service.NewQRRotationManager(qrRepo)
-	var sessionService *service.SessionService = service.NewSessionService(sessionRepo, courseRepo, qrManager)
+	var sessionService *service.SessionService = service.NewSessionService(sessionRepo, courseRepo, qrManager, notifService)
 	var otpService *service.OTPService = service.NewOTPService(otpRepo, sessionRepo, courseRepo)
 	var attendanceService *service.AttendanceService = service.NewAttendanceService(attendanceRepo, sessionRepo, courseRepo, qrRepo, otpRepo)
 
@@ -48,6 +52,8 @@ func NewRouter(queries *db.Queries, authService *service.AuthService) *chi.Mux {
 	var courseHandler *CourseHandler = NewCourseHandler(courseService)
 	var sessionHandler *SessionHandler = NewSessionHandler(sessionService)
 	var attendanceHandler *AttendanceHandler = NewAttendanceHandler(attendanceService, otpService)
+	var notifHandler *NotificationHandler = NewNotificationHandler(notifService)
+	var scheduleHandler *ScheduleHandler = NewScheduleHandler(scheduleService)
 
 	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -85,6 +91,14 @@ func NewRouter(queries *db.Queries, authService *service.AuthService) *chi.Mux {
 		r.Post("/attendance/qr", attendanceHandler.MarkAttendanceQR)
 		r.Post("/attendance/otp/request", attendanceHandler.RequestOTP)
 		r.Post("/attendance/otp/verify", attendanceHandler.MarkAttendanceOTP)
+
+		r.With(middleware.RequireRole("lecturer")).Post("/courses/{id}/schedules", scheduleHandler.CreateSchedule)
+		r.Get("/courses/{id}/schedules", scheduleHandler.GetSchedules)
+		r.With(middleware.RequireRole("lecturer")).Patch("/schedules/{id}", scheduleHandler.UpdateSchedule)
+		r.With(middleware.RequireRole("lecturer")).Delete("/schedules/{id}", scheduleHandler.DeleteSchedule)
+
+		r.Get("/notifications", notifHandler.GetUnseenNotifications)
+		r.Post("/notifications/{id}/seen", notifHandler.MarkSeen)
 	})
 
 	return router
