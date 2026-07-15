@@ -287,18 +287,17 @@ func (q *Queries) GetCoursesWithStudentCountByOwner(ctx context.Context, ownerID
 const updateCourseConfidenceThreshold = `-- name: UpdateCourseConfidenceThreshold :one
 UPDATE courses 
 SET confidence_threshold = $1 
-WHERE id = $2 AND owner_id = $3 
+WHERE id = $2 
 RETURNING id, owner_id, title, code, department, created_at, invite_code, confidence_threshold
 `
 
 type UpdateCourseConfidenceThresholdParams struct {
 	ConfidenceThreshold pgtype.Numeric
 	ID                  pgtype.UUID
-	OwnerID             pgtype.UUID
 }
 
 func (q *Queries) UpdateCourseConfidenceThreshold(ctx context.Context, arg UpdateCourseConfidenceThresholdParams) (Course, error) {
-	row := q.db.QueryRow(ctx, updateCourseConfidenceThreshold, arg.ConfidenceThreshold, arg.ID, arg.OwnerID)
+	row := q.db.QueryRow(ctx, updateCourseConfidenceThreshold, arg.ConfidenceThreshold, arg.ID)
 	var i Course
 	err := row.Scan(
 		&i.ID,

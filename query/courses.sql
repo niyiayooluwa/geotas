@@ -72,5 +72,5 @@ RETURNING *;
 -- name: UpdateCourseConfidenceThreshold :one
 UPDATE courses 
 SET confidence_threshold = $1 
-WHERE id = $2 AND owner_id = $3 
+WHERE id = $2 
 RETURNING *;

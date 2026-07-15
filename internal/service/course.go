@@ -430,8 +430,16 @@ func (s *CourseService) RemoveStudent(ctx context.Context, ownerID string, cours
 		return errors.New("course not found")
 	}
 
-	if course.OwnerID != parsedOwnerID {
-		return errors.New("you do not own this course")
+	actor, err := s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
+		CourseID: parsedCourseID,
+		UserID:   parsedOwnerID,
+	})
+	if err != nil || actor.Role != "lecturer" {
+		return errors.New("you do not have permission to remove members")
+	}
+
+	if parsedTargetID == course.OwnerID {
+		return errors.New("the course owner cannot be removed")
 	}
 
 	member, err := s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
@@ -468,13 +476,12 @@ func (s *CourseService) RotateInviteCode(ctx context.Context, userID string, cou
 		return "", err
 	}
 
-	course, err := s.courseRepo.GetCourseByID(ctx, parsedCourseID)
-	if err != nil {
-		return "", errors.New("course not found")
-	}
-
-	if course.OwnerID != parsedUserID {
-		return "", errors.New("you do not own this course")
+	actor, err := s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
+		CourseID: parsedCourseID,
+		UserID:   parsedUserID,
+	})
+	if err != nil || actor.Role != "lecturer" {
+		return "", errors.New("you do not have permission to rotate invite codes for this course")
 	}
 
 	newInviteCode, err := generateInvitationCode()
@@ -508,6 +515,14 @@ func (s *CourseService) UpdateCourseSettings(ctx context.Context, userID string,
 		return model.CourseResponse{}, errors.New("invalid course ID")
 	}
 
+	actor, err := s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
+		CourseID: parsedCourseID,
+		UserID:   parsedUserID,
+	})
+	if err != nil || actor.Role != "lecturer" {
+		return model.CourseResponse{}, errors.New("you do not have permission to update settings for this course")
+	}
+
 	var numericThreshold pgtype.Numeric
 	err = numericThreshold.Scan(fmt.Sprintf("%f", req.ConfidenceThreshold))
 	if err != nil {
@@ -517,7 +532,6 @@ func (s *CourseService) UpdateCourseSettings(ctx context.Context, userID string,
 	course, err := s.courseRepo.UpdateCourseConfidenceThreshold(ctx, db.UpdateCourseConfidenceThresholdParams{
 		ConfidenceThreshold: numericThreshold,
 		ID:                  parsedCourseID,
-		OwnerID:             parsedUserID,
 	})
 	if err != nil {
 		return model.CourseResponse{}, errors.New("could not update settings or forbidden (not owner)")

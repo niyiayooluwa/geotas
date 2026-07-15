@@ -66,12 +66,12 @@ func (s *ScheduleService) CreateSchedule(ctx context.Context, userID string, cou
 		return model.ScheduleResponse{}, errors.New("invalid course id")
 	}
 
-	course, err := s.courseRepo.GetCourseByID(ctx, parsedCourseID)
-	if err != nil {
-		return model.ScheduleResponse{}, errors.New("course not found")
-	}
-	if course.OwnerID != parsedUserID {
-		return model.ScheduleResponse{}, errors.New("only the course owner can create schedules")
+	member, err := s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
+		CourseID: parsedCourseID,
+		UserID:   parsedUserID,
+	})
+	if err != nil || member.Role != "lecturer" {
+		return model.ScheduleResponse{}, errors.New("you do not have permission to manage schedules for this course")
 	}
 
 	startTime, err := parseTimeString(req.StartTime)
@@ -126,12 +126,12 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, userID string, sch
 		return model.ScheduleResponse{}, errors.New("schedule not found")
 	}
 
-	course, err := s.courseRepo.GetCourseByID(ctx, schedule.CourseID)
-	if err != nil {
-		return model.ScheduleResponse{}, errors.New("course not found")
-	}
-	if course.OwnerID != parsedUserID {
-		return model.ScheduleResponse{}, errors.New("only the course owner can update schedules")
+	member, err := s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
+		CourseID: schedule.CourseID,
+		UserID:   parsedUserID,
+	})
+	if err != nil || member.Role != "lecturer" {
+		return model.ScheduleResponse{}, errors.New("you do not have permission to manage schedules for this course")
 	}
 
 	startTime, _ := parseTimeString(req.StartTime)
@@ -217,12 +217,12 @@ func (s *ScheduleService) DeleteSchedule(ctx context.Context, userID string, sch
 		return errors.New("schedule not found")
 	}
 
-	course, err := s.courseRepo.GetCourseByID(ctx, schedule.CourseID)
-	if err != nil {
-		return errors.New("course not found")
-	}
-	if course.OwnerID != parsedUserID {
-		return errors.New("only the course owner can delete schedules")
+	member, err := s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
+		CourseID: schedule.CourseID,
+		UserID:   parsedUserID,
+	})
+	if err != nil || member.Role != "lecturer" {
+		return errors.New("you do not have permission to manage schedules for this course")
 	}
 
 	return s.scheduleRepo.DeleteSchedule(ctx, parsedScheduleID)
