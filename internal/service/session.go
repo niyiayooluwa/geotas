@@ -112,9 +112,13 @@ func (s *SessionService) CloseSession(ctx context.Context, userID string, sessio
 		return model.SessionResponse{}, errors.New("session not found")
 	}
 
-	// confirm ownership
-	if session.CreatedBy != parsedUserID {
-		return model.SessionResponse{}, errors.New("you do not own this session")
+	// confirm user is a lecturer for this course
+	member, err := s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
+		CourseID: session.CourseID,
+		UserID:   parsedUserID,
+	})
+	if err != nil || member.Role != "lecturer" {
+		return model.SessionResponse{}, errors.New("you do not have permission to close this session")
 	}
 
 	// confirm it's still active
@@ -191,8 +195,12 @@ func (s *SessionService) GetLiveQRToken(ctx context.Context, userID string, sess
         return model.QRTokenResponse{}, errors.New("Session not found")
     }
 
-    if session.CreatedBy != parsedUserID {
-        return model.QRTokenResponse{}, errors.New("You do not own this session")
+    member, err := s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
+		CourseID: session.CourseID,
+		UserID:   parsedUserID,
+	})
+    if err != nil || member.Role != "lecturer" {
+        return model.QRTokenResponse{}, errors.New("you do not have permission to access this session")
     }
 
     return s.qrManager.GetCurrentToken(sessionID, session.CourseID.String())
@@ -215,8 +223,13 @@ func (s *SessionService) DeleteSession(ctx context.Context, userID string, sessi
 		return errors.New("Session not found")
 	}
 
-	if session.CreatedBy != parsedUserID {
-		return errors.New("You do not own this session")
+	// confirm user is a lecturer for this course
+	member, err := s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
+		CourseID: session.CourseID,
+		UserID:   parsedUserID,
+	})
+	if err != nil || member.Role != "lecturer" {
+		return errors.New("you do not have permission to delete this session")
 	}
 
 	// stop rotation if session was active
