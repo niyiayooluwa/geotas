@@ -16,7 +16,7 @@ GEOTAS layers multiple verification mechanisms simultaneously, computing a **con
 ## System Architecture
 
 ```
-Flutter App (Lecturer Dashboard)
+React Web App (Lecturer Dashboard)
         │
         ├── HTTP: Manage courses, schedules, sessions, & view master attendance
         └── Polling: Fetch real-time rotating QR codes and live attendance updates
@@ -36,7 +36,7 @@ Flutter Mobile (Student App)
 ## Core Features & Workflows
 
 ### The Lecturer Flow
-1. **Registration & Auth**: Signs up within the mobile app (email strictly checked for `.edu.ng`).
+1. **Registration & Auth**: Signs up on the web dashboard (email strictly checked for `.edu.ng`).
 2. **Course Creation**: Creates a course and receives a unique 5-character invite code.
 3. **Course Management**: Can invite students, add co-lecturers, set the strictness of the geofence via the `confidence_threshold`, and manage the weekly **Timetable / Schedules**.
 4. **Session Management**: Starts an attendance session with a defined geofence radius.
@@ -98,7 +98,8 @@ If the final computed score falls below the lecturer's custom `confidence_thresh
 | **Database** | PostgreSQL (hosted on Neon serverless provider) |
 | **Query Layer** | `sqlc` (generates type-safe Go code from raw SQL) + `pgx` driver |
 | **Authentication** | JWT (`golang-jwt`) for stateless session management + Firebase Auth for OAuth |
-| **Client App** | Flutter (Dart) for both Lecturers and Students |
+| **Mobile App** | Flutter (Dart) for Students |
+| **Web Dashboard** | React, Vite, shadcn/ui for Lecturers |
 
 ---
 
