@@ -58,14 +58,12 @@ func (s *SessionService) CreateSession(ctx context.Context, userID string, req m
 		return model.SessionResponse{}, errors.New("invalid course_id")
 	}
 
-	// confirm the course exists and belongs to this lecturer
-	course, err := s.courseRepo.GetCourseByID(ctx, courseID)
-	if err != nil {
-		return model.SessionResponse{}, errors.New("course not found")
-	}
-
-	if course.OwnerID != createdBy {
-		return model.SessionResponse{}, errors.New("you do not own this course")
+	member, err := s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
+		CourseID: courseID,
+		UserID:   createdBy,
+	})
+	if err != nil || member.Role != "lecturer" {
+		return model.SessionResponse{}, errors.New("you do not have permission to create a session for this course")
 	}
 
 	// check no active session already exists for this course

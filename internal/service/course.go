@@ -370,13 +370,12 @@ func (s *CourseService) GetCourseAttendance(ctx context.Context, userID string, 
 		return nil, err
 	}
 
-	course, err := s.courseRepo.GetCourseByID(ctx, parsedCourseID)
-	if err != nil {
-		return nil, errors.New("course not found")
-	}
-
-	if course.OwnerID != parsedUserID {
-		return nil, errors.New("you do not own this course")
+	member, err := s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
+		CourseID: parsedCourseID,
+		UserID:   parsedUserID,
+	})
+	if err != nil || member.Role != "lecturer" {
+		return nil, errors.New("you do not have permission to view attendance for this course")
 	}
 
 	records, err := s.attendanceRepo.GetAttendanceByCourse(ctx, parsedCourseID)
