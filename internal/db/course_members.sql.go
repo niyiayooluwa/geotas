@@ -16,11 +16,12 @@ INSERT INTO course_members (
     course_id,
     user_id,
     role,
-    matriculation_number
+    matriculation_number,
+    co_lecturer
 ) VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3, $4, $5
 )
-RETURNING id, course_id, user_id, role, matriculation_number, joined_at
+RETURNING id, course_id, user_id, role, matriculation_number, joined_at, co_lecturer
 `
 
 type AddCourseMemberParams struct {
@@ -28,6 +29,7 @@ type AddCourseMemberParams struct {
 	UserID              pgtype.UUID
 	Role                string
 	MatriculationNumber pgtype.Text
+	CoLecturer          bool
 }
 
 func (q *Queries) AddCourseMember(ctx context.Context, arg AddCourseMemberParams) (CourseMember, error) {
@@ -36,6 +38,7 @@ func (q *Queries) AddCourseMember(ctx context.Context, arg AddCourseMemberParams
 		arg.UserID,
 		arg.Role,
 		arg.MatriculationNumber,
+		arg.CoLecturer,
 	)
 	var i CourseMember
 	err := row.Scan(
@@ -45,12 +48,13 @@ func (q *Queries) AddCourseMember(ctx context.Context, arg AddCourseMemberParams
 		&i.Role,
 		&i.MatriculationNumber,
 		&i.JoinedAt,
+		&i.CoLecturer,
 	)
 	return i, err
 }
 
 const getCourseMember = `-- name: GetCourseMember :one
-SELECT id, course_id, user_id, role, matriculation_number, joined_at FROM course_members
+SELECT id, course_id, user_id, role, matriculation_number, joined_at, co_lecturer FROM course_members
 WHERE course_id = $1 AND user_id = $2
 `
 
@@ -69,31 +73,62 @@ func (q *Queries) GetCourseMember(ctx context.Context, arg GetCourseMemberParams
 		&i.Role,
 		&i.MatriculationNumber,
 		&i.JoinedAt,
+		&i.CoLecturer,
 	)
 	return i, err
 }
 
 const getCourseMembersByCourse = `-- name: GetCourseMembersByCourse :many
-SELECT id, course_id, user_id, role, matriculation_number, joined_at FROM course_members
-WHERE course_id = $1
+SELECT 
+    cm.course_id,
+    cm.user_id,
+    cm.role,
+    cm.matriculation_number,
+    cm.co_lecturer,
+    cm.joined_at,
+    u.first_name,
+    u.last_name,
+    u.email,
+    u.avatar_url
+FROM course_members cm
+JOIN users u ON cm.user_id = u.id
+WHERE cm.course_id = $1
+ORDER BY u.first_name ASC, u.last_name ASC
 `
 
-func (q *Queries) GetCourseMembersByCourse(ctx context.Context, courseID pgtype.UUID) ([]CourseMember, error) {
+type GetCourseMembersByCourseRow struct {
+	CourseID            pgtype.UUID
+	UserID              pgtype.UUID
+	Role                string
+	MatriculationNumber pgtype.Text
+	CoLecturer          bool
+	JoinedAt            pgtype.Timestamptz
+	FirstName           string
+	LastName            string
+	Email               string
+	AvatarUrl           pgtype.Text
+}
+
+func (q *Queries) GetCourseMembersByCourse(ctx context.Context, courseID pgtype.UUID) ([]GetCourseMembersByCourseRow, error) {
 	rows, err := q.db.Query(ctx, getCourseMembersByCourse, courseID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []CourseMember
+	var items []GetCourseMembersByCourseRow
 	for rows.Next() {
-		var i CourseMember
+		var i GetCourseMembersByCourseRow
 		if err := rows.Scan(
-			&i.ID,
 			&i.CourseID,
 			&i.UserID,
 			&i.Role,
 			&i.MatriculationNumber,
+			&i.CoLecturer,
 			&i.JoinedAt,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+			&i.AvatarUrl,
 		); err != nil {
 			return nil, err
 		}

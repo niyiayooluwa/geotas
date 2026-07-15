@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/niyiayooluwa/geotas/internal/db"
 	"github.com/niyiayooluwa/geotas/internal/middleware"
 	"github.com/niyiayooluwa/geotas/internal/repository"
@@ -13,6 +14,15 @@ import (
 
 func NewRouter(queries *db.Queries, authService *service.AuthService) *chi.Mux {
 	var router *chi.Mux = chi.NewRouter()
+
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"https://geotas.vercel.app", "http://localhost:*", "http://127.0.0.1:*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
 
 	router.Use(chiMiddleware.Logger)
 	router.Use(chiMiddleware.Recoverer)
@@ -43,15 +53,15 @@ func NewRouter(queries *db.Queries, authService *service.AuthService) *chi.Mux {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("GEOTAS is alive"))
 	})
-
 	router.Post("/auth/google", authHandler.GoogleLogin)
-
+	router.Post("/auth/register", authHandler.RegisterLecturer)
+	router.Post("/auth/login", authHandler.LoginLecturer)
 	router.Group(func(r chi.Router) {
 		r.Use(middleware.AuthMiddleWare)
 		r.Get("/me", userHandler.Me)
 
 		// static course routes must come before wildcard {id} routes
-		r.Post("/courses", courseHandler.CreateCourse)
+		r.With(middleware.RequireRole("lecturer")).Post("/courses", courseHandler.CreateCourse)
 		r.Get("/courses", courseHandler.GetMyCourses)
 		r.Post("/courses/join", courseHandler.JoinCourse)
 		r.Get("/courses/enrolled", courseHandler.GetEnrolledCourses) // must be above /{id}
@@ -59,7 +69,11 @@ func NewRouter(queries *db.Queries, authService *service.AuthService) *chi.Mux {
 		// wildcard course routes
 		r.Delete("/courses/{id}", courseHandler.DeleteCourse)
 		r.Delete("/courses/{id}/leave", courseHandler.LeaveCourse)
+		r.Get("/courses/{id}/members", courseHandler.GetCourseMembers)
 		r.Get("/courses/{id}/attendance", courseHandler.GetCourseAttendance)
+		r.Delete("/courses/{id}/members/{targetId}", courseHandler.RemoveStudent)
+		r.Post("/courses/{id}/invite-code/rotate", courseHandler.RotateInviteCode)
+		r.With(middleware.RequireRole("lecturer")).Patch("/courses/{id}/settings", courseHandler.UpdateCourseSettings)
 
 		r.Post("/sessions", sessionHandler.CreateSession)
 		r.Get("/courses/{courseId}/sessions", sessionHandler.GetSessionsByCourse)

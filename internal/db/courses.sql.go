@@ -21,7 +21,7 @@ INSERT INTO courses (
 ) VALUES (
     $1, $2, $3, $4, $5
 )
-RETURNING id, owner_id, title, code, department, created_at, invite_code
+RETURNING id, owner_id, title, code, department, created_at, invite_code, confidence_threshold
 `
 
 type CreateCourseParams struct {
@@ -49,6 +49,7 @@ func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Cou
 		&i.Department,
 		&i.CreatedAt,
 		&i.InviteCode,
+		&i.ConfidenceThreshold,
 	)
 	return i, err
 }
@@ -64,7 +65,7 @@ func (q *Queries) DeleteCourse(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getCourseByCode = `-- name: GetCourseByCode :one
-SELECT id, owner_id, title, code, department, created_at, invite_code FROM courses
+SELECT id, owner_id, title, code, department, created_at, invite_code, confidence_threshold FROM courses
 WHERE code = $1
 `
 
@@ -79,12 +80,13 @@ func (q *Queries) GetCourseByCode(ctx context.Context, code string) (Course, err
 		&i.Department,
 		&i.CreatedAt,
 		&i.InviteCode,
+		&i.ConfidenceThreshold,
 	)
 	return i, err
 }
 
 const getCourseByID = `-- name: GetCourseByID :one
-SELECT id, owner_id, title, code, department, created_at, invite_code FROM courses
+SELECT id, owner_id, title, code, department, created_at, invite_code, confidence_threshold FROM courses
 WHERE id = $1
 `
 
@@ -99,12 +101,13 @@ func (q *Queries) GetCourseByID(ctx context.Context, id pgtype.UUID) (Course, er
 		&i.Department,
 		&i.CreatedAt,
 		&i.InviteCode,
+		&i.ConfidenceThreshold,
 	)
 	return i, err
 }
 
 const getCourseByInviteCode = `-- name: GetCourseByInviteCode :one
-SELECT id, owner_id, title, code, department, created_at, invite_code FROM courses
+SELECT id, owner_id, title, code, department, created_at, invite_code, confidence_threshold FROM courses
 WHERE invite_code = $1
 `
 
@@ -119,6 +122,7 @@ func (q *Queries) GetCourseByInviteCode(ctx context.Context, inviteCode string) 
 		&i.Department,
 		&i.CreatedAt,
 		&i.InviteCode,
+		&i.ConfidenceThreshold,
 	)
 	return i, err
 }
@@ -131,6 +135,7 @@ SELECT
     c.code,
     c.department,
     c.invite_code,
+    c.confidence_threshold,
     c.created_at,
     cm.role,
     cm.matriculation_number,
@@ -139,7 +144,7 @@ FROM course_members cm
 JOIN courses c ON cm.course_id = c.id
 LEFT JOIN course_members all_members ON all_members.course_id = c.id
 WHERE cm.user_id = $1
-GROUP BY c.id, c.owner_id, c.title, c.code, c.department, c.invite_code, c.created_at, cm.role, cm.matriculation_number
+GROUP BY c.id, c.owner_id, c.title, c.code, c.department, c.invite_code, c.confidence_threshold, c.created_at, cm.role, cm.matriculation_number
 ORDER BY c.created_at DESC
 `
 
@@ -150,6 +155,7 @@ type GetCoursesByMemberRow struct {
 	Code                string
 	Department          pgtype.Text
 	InviteCode          string
+	ConfidenceThreshold pgtype.Numeric
 	CreatedAt           pgtype.Timestamptz
 	Role                string
 	MatriculationNumber pgtype.Text
@@ -172,6 +178,7 @@ func (q *Queries) GetCoursesByMember(ctx context.Context, userID pgtype.UUID) ([
 			&i.Code,
 			&i.Department,
 			&i.InviteCode,
+			&i.ConfidenceThreshold,
 			&i.CreatedAt,
 			&i.Role,
 			&i.MatriculationNumber,
@@ -188,7 +195,7 @@ func (q *Queries) GetCoursesByMember(ctx context.Context, userID pgtype.UUID) ([
 }
 
 const getCoursesByOwner = `-- name: GetCoursesByOwner :many
-SELECT id, owner_id, title, code, department, created_at, invite_code FROM courses
+SELECT id, owner_id, title, code, department, created_at, invite_code, confidence_threshold FROM courses
 WHERE owner_id = $1
 `
 
@@ -209,6 +216,7 @@ func (q *Queries) GetCoursesByOwner(ctx context.Context, ownerID pgtype.UUID) ([
 			&i.Department,
 			&i.CreatedAt,
 			&i.InviteCode,
+			&i.ConfidenceThreshold,
 		); err != nil {
 			return nil, err
 		}
@@ -222,24 +230,28 @@ func (q *Queries) GetCoursesByOwner(ctx context.Context, ownerID pgtype.UUID) ([
 
 const getCoursesWithStudentCountByOwner = `-- name: GetCoursesWithStudentCountByOwner :many
 SELECT
-    c.id, c.owner_id, c.title, c.code, c.department, c.created_at, c.invite_code,
+	c.id, c.owner_id, c.title, c.code, c.department, c.created_at, c.invite_code, c.confidence_threshold,
     COUNT(cm.id) FILTER (WHERE cm.role = 'student') AS student_count
 FROM courses c
 LEFT JOIN course_members cm ON cm.course_id = c.id
-WHERE c.owner_id = $1
+WHERE c.owner_id = $1 OR EXISTS (
+    SELECT 1 FROM course_members cm2 
+    WHERE cm2.course_id = c.id AND cm2.user_id = $1 AND cm2.co_lecturer = true
+)
 GROUP BY c.id
 ORDER BY c.created_at DESC
 `
 
 type GetCoursesWithStudentCountByOwnerRow struct {
-	ID           pgtype.UUID
-	OwnerID      pgtype.UUID
-	Title        string
-	Code         string
-	Department   pgtype.Text
-	CreatedAt    pgtype.Timestamptz
-	InviteCode   string
-	StudentCount int64
+	ID                  pgtype.UUID
+	OwnerID             pgtype.UUID
+	Title               string
+	Code                string
+	Department          pgtype.Text
+	CreatedAt           pgtype.Timestamptz
+	InviteCode          string
+	ConfidenceThreshold pgtype.Numeric
+	StudentCount        int64
 }
 
 func (q *Queries) GetCoursesWithStudentCountByOwner(ctx context.Context, ownerID pgtype.UUID) ([]GetCoursesWithStudentCountByOwnerRow, error) {
@@ -259,6 +271,7 @@ func (q *Queries) GetCoursesWithStudentCountByOwner(ctx context.Context, ownerID
 			&i.Department,
 			&i.CreatedAt,
 			&i.InviteCode,
+			&i.ConfidenceThreshold,
 			&i.StudentCount,
 		); err != nil {
 			return nil, err
@@ -269,4 +282,61 @@ func (q *Queries) GetCoursesWithStudentCountByOwner(ctx context.Context, ownerID
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateCourseConfidenceThreshold = `-- name: UpdateCourseConfidenceThreshold :one
+UPDATE courses 
+SET confidence_threshold = $1 
+WHERE id = $2 AND owner_id = $3 
+RETURNING id, owner_id, title, code, department, created_at, invite_code, confidence_threshold
+`
+
+type UpdateCourseConfidenceThresholdParams struct {
+	ConfidenceThreshold pgtype.Numeric
+	ID                  pgtype.UUID
+	OwnerID             pgtype.UUID
+}
+
+func (q *Queries) UpdateCourseConfidenceThreshold(ctx context.Context, arg UpdateCourseConfidenceThresholdParams) (Course, error) {
+	row := q.db.QueryRow(ctx, updateCourseConfidenceThreshold, arg.ConfidenceThreshold, arg.ID, arg.OwnerID)
+	var i Course
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Title,
+		&i.Code,
+		&i.Department,
+		&i.CreatedAt,
+		&i.InviteCode,
+		&i.ConfidenceThreshold,
+	)
+	return i, err
+}
+
+const updateCourseInviteCode = `-- name: UpdateCourseInviteCode :one
+UPDATE courses
+SET invite_code = $2
+WHERE id = $1
+RETURNING id, owner_id, title, code, department, created_at, invite_code, confidence_threshold
+`
+
+type UpdateCourseInviteCodeParams struct {
+	ID         pgtype.UUID
+	InviteCode string
+}
+
+func (q *Queries) UpdateCourseInviteCode(ctx context.Context, arg UpdateCourseInviteCodeParams) (Course, error) {
+	row := q.db.QueryRow(ctx, updateCourseInviteCode, arg.ID, arg.InviteCode)
+	var i Course
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Title,
+		&i.Code,
+		&i.Department,
+		&i.CreatedAt,
+		&i.InviteCode,
+		&i.ConfidenceThreshold,
+	)
+	return i, err
 }

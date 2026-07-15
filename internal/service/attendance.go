@@ -262,6 +262,16 @@ func (s *AttendanceService) mark(
 		session.StartedAt.Time,
 	)
 
+	course, err := s.courseRepo.GetCourseByID(ctx, session.CourseID)
+	if err != nil {
+		return model.AttendanceResponse{}, errors.New("Course not found")
+	}
+
+	thresholdVal, _ := course.ConfidenceThreshold.Float64Value()
+	if score < thresholdVal.Float64 {
+		return model.AttendanceResponse{}, errors.New("Attendance rejected: confidence score too low")
+	}
+
 	record, err := s.attendanceRepo.CreateAttendanceRecord(ctx, db.CreateAttendanceRecordParams{
 		SessionID:            sessionUUID,
 		UserID:               userUUID,

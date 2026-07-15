@@ -16,6 +16,7 @@ type contextKey string
 
 const UserIDKey contextKey = "user_id"
 const UserEmailKey contextKey = "email"
+const UserRoleKey contextKey = "role"
 
 func AuthMiddleWare(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -62,8 +63,22 @@ func AuthMiddleWare(next http.Handler) http.Handler {
 		//stuff user_id and email into request context
 		ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
 		ctx = context.WithValue(ctx, UserEmailKey, claims.Email)
+		ctx = context.WithValue(ctx, UserRoleKey, claims.Role)
 
 		// pass request to next handler with updated context
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func RequireRole(role string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userRole, ok := r.Context().Value(UserRoleKey).(string)
+			if !ok || userRole != role {
+				http.Error(w, "Forbidden: insufficient permissions", http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }

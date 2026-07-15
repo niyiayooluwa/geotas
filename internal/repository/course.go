@@ -35,7 +35,7 @@ func (r *CourseRepository) AddCourseMember(ctx context.Context, params db.AddCou
 	return r.queries.AddCourseMember(ctx, params)
 }
 
-func (r *CourseRepository) GetCourseMembersByCourse(ctx context.Context, courseID pgtype.UUID) ([]db.CourseMember, error) {
+func (r *CourseRepository) GetCourseMembersByCourse(ctx context.Context, courseID pgtype.UUID) ([]db.GetCourseMembersByCourseRow, error) {
 	return r.queries.GetCourseMembersByCourse(ctx, courseID)
 }
 
@@ -64,4 +64,12 @@ func (r *CourseRepository) RemoveCourseMember(ctx context.Context, courseID pgty
 		CourseID: courseID,
 		UserID:   userID,
 	})
+}
+
+func (r *CourseRepository) UpdateCourseInviteCode(ctx context.Context, params db.UpdateCourseInviteCodeParams) (db.Course, error) {
+	return r.queries.UpdateCourseInviteCode(ctx, params)
+}
+
+func (r *CourseRepository) UpdateCourseConfidenceThreshold(ctx context.Context, params db.UpdateCourseConfidenceThresholdParams) (db.Course, error) {
+	return r.queries.UpdateCourseConfidenceThreshold(ctx, params)
 }

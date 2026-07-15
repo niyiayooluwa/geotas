@@ -38,6 +38,7 @@ SELECT
     c.code,
     c.department,
     c.invite_code,
+    c.confidence_threshold,
     c.created_at,
     cm.role,
     cm.matriculation_number,
@@ -46,15 +47,30 @@ FROM course_members cm
 JOIN courses c ON cm.course_id = c.id
 LEFT JOIN course_members all_members ON all_members.course_id = c.id
 WHERE cm.user_id = $1
-GROUP BY c.id, c.owner_id, c.title, c.code, c.department, c.invite_code, c.created_at, cm.role, cm.matriculation_number
+GROUP BY c.id, c.owner_id, c.title, c.code, c.department, c.invite_code, c.confidence_threshold, c.created_at, cm.role, cm.matriculation_number
 ORDER BY c.created_at DESC;
 
 -- name: GetCoursesWithStudentCountByOwner :many
 SELECT
-    c.*,
+	c.*,
     COUNT(cm.id) FILTER (WHERE cm.role = 'student') AS student_count
 FROM courses c
 LEFT JOIN course_members cm ON cm.course_id = c.id
-WHERE c.owner_id = $1
+WHERE c.owner_id = $1 OR EXISTS (
+    SELECT 1 FROM course_members cm2 
+    WHERE cm2.course_id = c.id AND cm2.user_id = $1 AND cm2.co_lecturer = true
+)
 GROUP BY c.id
 ORDER BY c.created_at DESC;
+
+-- name: UpdateCourseInviteCode :one
+UPDATE courses
+SET invite_code = $2
+WHERE id = $1
+RETURNING *;
+
+-- name: UpdateCourseConfidenceThreshold :one
+UPDATE courses 
+SET confidence_threshold = $1 
+WHERE id = $2 AND owner_id = $3 
+RETURNING *;

@@ -13,10 +13,15 @@ type CourseResponse struct {
     OwnerID      string `json:"owner_id"`
     Title        string `json:"title"`
     Code         string `json:"code"`
-    InviteCode   string `json:"invite_code"`
-    Department   string `json:"department"`
-    StudentCount int64  `json:"student_count"`
-    CreatedAt    string `json:"created_at"`
+    InviteCode          string  `json:"invite_code"`
+    Department          string  `json:"department"`
+    StudentCount        int64   `json:"student_count"`
+    ConfidenceThreshold float64 `json:"confidence_threshold"`
+    CreatedAt           string  `json:"created_at"`
+}
+
+type UpdateCourseSettingsRequest struct {
+	ConfidenceThreshold float64 `json:"confidence_threshold"`
 }
 
 // incoming request to join a course
@@ -35,6 +40,18 @@ type CourseMemberResponse struct {
 	JoinedAt            string `json:"joined_at"`
 }
 
+type CourseMemberDetailsResponse struct {
+	UserID              string  `json:"user_id"`
+	FirstName           string  `json:"first_name"`
+	LastName            string  `json:"last_name"`
+	Email               string  `json:"email"`
+	AvatarURL           *string `json:"avatar_url"`
+	Role                string  `json:"role"`
+	MatriculationNumber string  `json:"matriculation_number"`
+	CoLecturer          bool    `json:"co_lecturer"`
+	JoinedAt            string  `json:"joined_at"`
+}
+
 type MemberCourseResponse struct {
 	ID                  string `json:"id"`
 	OwnerID             string `json:"owner_id"`
@@ -42,8 +59,9 @@ type MemberCourseResponse struct {
 	Code                string `json:"code"`
 	Department          string `json:"department"`
 	InviteCode          string `json:"invite_code"`
-	CreatedAt           string `json:"created_at"`
-	Role                string `json:"role"`
-	MatriculationNumber string `json:"matriculation_number"`
-	StudentCount        int64  `json:"student_count"` // Add this line
+	CreatedAt           string  `json:"created_at"`
+	Role                string  `json:"role"`
+	MatriculationNumber string  `json:"matriculation_number"`
+	StudentCount        int64   `json:"student_count"`
+	ConfidenceThreshold float64 `json:"confidence_threshold"`
 }

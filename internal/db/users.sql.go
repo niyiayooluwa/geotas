@@ -11,8 +11,51 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (
+    email,
+    password_hash,
+    first_name,
+    last_name,
+    role
+) VALUES (
+    $1, $2, $3, $4, $5
+) RETURNING id, email, first_name, last_name, created_at, google_id, avatar_url, role, password_hash
+`
+
+type CreateUserParams struct {
+	Email        string
+	PasswordHash pgtype.Text
+	FirstName    string
+	LastName     string
+	Role         UserRole
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, createUser,
+		arg.Email,
+		arg.PasswordHash,
+		arg.FirstName,
+		arg.LastName,
+		arg.Role,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.FirstName,
+		&i.LastName,
+		&i.CreatedAt,
+		&i.GoogleID,
+		&i.AvatarUrl,
+		&i.Role,
+		&i.PasswordHash,
+	)
+	return i, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, first_name, last_name, created_at, google_id, avatar_url FROM users
+SELECT id, email, first_name, last_name, created_at, google_id, avatar_url, role, password_hash FROM users
 WHERE email = $1
 `
 
@@ -27,12 +70,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.CreatedAt,
 		&i.GoogleID,
 		&i.AvatarUrl,
+		&i.Role,
+		&i.PasswordHash,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, first_name, last_name, created_at, google_id, avatar_url FROM users
+SELECT id, email, first_name, last_name, created_at, google_id, avatar_url, role, password_hash FROM users
 WHERE id = $1
 `
 
@@ -47,6 +92,8 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.CreatedAt,
 		&i.GoogleID,
 		&i.AvatarUrl,
+		&i.Role,
+		&i.PasswordHash,
 	)
 	return i, err
 }
@@ -66,7 +113,7 @@ ON CONFLICT (email) DO UPDATE SET
     first_name = COALESCE(NULLIF(users.first_name, ''), EXCLUDED.first_name),
     last_name  = COALESCE(NULLIF(users.last_name, ''), EXCLUDED.last_name),
     avatar_url = COALESCE(users.avatar_url, EXCLUDED.avatar_url)
-RETURNING id, email, first_name, last_name, created_at, google_id, avatar_url
+RETURNING id, email, first_name, last_name, created_at, google_id, avatar_url, role, password_hash
 `
 
 type UpsertGoogleUserParams struct {
@@ -94,6 +141,8 @@ func (q *Queries) UpsertGoogleUser(ctx context.Context, arg UpsertGoogleUserPara
 		&i.CreatedAt,
 		&i.GoogleID,
 		&i.AvatarUrl,
+		&i.Role,
+		&i.PasswordHash,
 	)
 	return i, err
 }

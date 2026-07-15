@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base32"
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -85,6 +86,7 @@ func (s *CourseService) CreateCourse(ctx context.Context, userID string, req mod
 		MatriculationNumber: pgtype.Text{
 			Valid: false,
 		},
+		CoLecturer: false,
 	})
 	if err != nil {
 		return model.CourseResponse{}, errors.New("Failed to add course member")
@@ -94,19 +96,20 @@ func (s *CourseService) CreateCourse(ctx context.Context, userID string, req mod
 		ID:         course.ID.String(),
 		OwnerID:    course.OwnerID.String(),
 		Title:      course.Title,
-		Code:       course.Code,
-		Department: course.Department.String,
-		InviteCode: course.InviteCode,
-		CreatedAt:  course.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+		Code:                course.Code,
+		Department:          course.Department.String,
+		InviteCode:          course.InviteCode,
+		ConfidenceThreshold: 0.75, // Default from DB
+		CreatedAt:           course.CreatedAt.Time.Format("2006-01-02 15:04:05"),
 	}, nil
 }
 
-func (s *CourseService) JoinCourse(ctx context.Context, userID string, req model.JoinCourseRequest) (model.CourseMemberResponse, error) {
+func (s *CourseService) JoinCourse(ctx context.Context, userID string, userRole string, req model.JoinCourseRequest) (model.CourseMemberResponse, error) {
 	if req.InviteCode == "" {
 		return model.CourseMemberResponse{}, errors.New("invite code is required")
 	}
 
-	if req.MatriculationNumber == "" {
+	if userRole != "lecturer" && req.MatriculationNumber == "" {
 		return model.CourseMemberResponse{}, errors.New("matriculation number is required to join a course")
 	}
 
@@ -132,14 +135,23 @@ func (s *CourseService) JoinCourse(ctx context.Context, userID string, req model
 		return model.CourseMemberResponse{}, errors.New("you are already a member of this course")
 	}
 
+	roleToAssign := "student"
+	coLecturer := false
+	matNo := pgtype.Text{Valid: false}
+
+	if userRole == "lecturer" {
+		roleToAssign = "lecturer"
+		coLecturer = true
+	} else {
+		matNo = pgtype.Text{String: req.MatriculationNumber, Valid: true}
+	}
+
 	member, err := s.courseRepo.AddCourseMember(ctx, db.AddCourseMemberParams{
-		CourseID: course.ID,
-		UserID:   studentID,
-		Role:     "student",
-		MatriculationNumber: pgtype.Text{
-			String: req.MatriculationNumber,
-			Valid:  true,
-		},
+		CourseID:            course.ID,
+		UserID:              studentID,
+		Role:                roleToAssign,
+		MatriculationNumber: matNo,
+		CoLecturer:          coLecturer,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -172,15 +184,18 @@ func (s *CourseService) GetCoursesByOwner(ctx context.Context, userID string) ([
 
 	var response []model.CourseResponse
 	for _, course := range courses {
+		thresholdVal, _ := course.ConfidenceThreshold.Float64Value()
+
 		response = append(response, model.CourseResponse{
-			ID:           course.ID.String(),
-			OwnerID:      course.OwnerID.String(),
-			Title:        course.Title,
-			Code:         course.Code,
-			InviteCode:   course.InviteCode,
-			Department:   course.Department.String,
-			StudentCount: course.StudentCount,
-			CreatedAt:    course.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+			ID:                  course.ID.String(),
+			OwnerID:             course.OwnerID.String(),
+			Title:               course.Title,
+			Code:                course.Code,
+			InviteCode:          course.InviteCode,
+			Department:          course.Department.String,
+			StudentCount:        course.StudentCount,
+			ConfidenceThreshold: thresholdVal.Float64,
+			CreatedAt:           course.CreatedAt.Time.Format("2006-01-02 15:04:05"),
 		})
 	}
 
@@ -271,6 +286,8 @@ func (s *CourseService) GetCoursesByMember(ctx context.Context, userID string) (
 
 	var response []model.MemberCourseResponse
 	for _, c := range courses {
+		thresholdVal, _ := c.ConfidenceThreshold.Float64Value()
+
 		response = append(response, model.MemberCourseResponse{
 			ID:                  c.ID.String(),
 			OwnerID:             c.OwnerID.String(),
@@ -282,7 +299,59 @@ func (s *CourseService) GetCoursesByMember(ctx context.Context, userID string) (
 			Role:                c.Role,
 			MatriculationNumber: c.MatriculationNumber.String,
 			StudentCount:        c.StudentCount,
+			ConfidenceThreshold: thresholdVal.Float64,
 		})
+	}
+
+	return response, nil
+}
+
+// GetCourseMembers returns the full roster of a course
+func (s *CourseService) GetCourseMembers(ctx context.Context, userID string, courseID string) ([]model.CourseMemberDetailsResponse, error) {
+	parsedUserID, err := parseUUID(userID)
+	if err != nil {
+		return nil, errors.New("invalid user ID")
+	}
+
+	parsedCourseID, err := parseUUID(courseID)
+	if err != nil {
+		return nil, errors.New("invalid course ID")
+	}
+
+	// Verify the caller is a member (either student or lecturer)
+	_, err = s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
+		CourseID: parsedCourseID,
+		UserID:   parsedUserID,
+	})
+	if err != nil {
+		return nil, errors.New("you are not a member of this course")
+	}
+
+	members, err := s.courseRepo.GetCourseMembersByCourse(ctx, parsedCourseID)
+	if err != nil {
+		return nil, errors.New("could not fetch course members")
+	}
+
+	var response []model.CourseMemberDetailsResponse
+	for _, m := range members {
+		var avatarURL *string
+		if m.AvatarUrl.Valid {
+			avatarURL = &m.AvatarUrl.String
+		}
+		response = append(response, model.CourseMemberDetailsResponse{
+			UserID:              m.UserID.String(),
+			FirstName:           m.FirstName,
+			LastName:            m.LastName,
+			Email:               m.Email,
+			AvatarURL:           avatarURL,
+			Role:                string(m.Role),
+			MatriculationNumber: m.MatriculationNumber.String,
+			CoLecturer:          m.CoLecturer,
+			JoinedAt:            m.JoinedAt.Time.Format("2006-01-02 15:04:05"),
+		})
+	}
+	if response == nil {
+		response = make([]model.CourseMemberDetailsResponse, 0)
 	}
 
 	return response, nil
@@ -339,4 +408,132 @@ func (s *CourseService) GetCourseAttendance(ctx context.Context, userID string, 
 	}
 
 	return response, nil
+}
+
+func (s *CourseService) RemoveStudent(ctx context.Context, ownerID string, courseID string, targetUserID string) error {
+	parsedOwnerID, err := parseUUID(ownerID)
+	if err != nil {
+		return errors.New("invalid owner_id")
+	}
+
+	parsedCourseID, err := parseUUID(courseID)
+	if err != nil {
+		return errors.New("invalid course_id")
+	}
+
+	parsedTargetID, err := parseUUID(targetUserID)
+	if err != nil {
+		return errors.New("invalid target_user_id")
+	}
+
+	course, err := s.courseRepo.GetCourseByID(ctx, parsedCourseID)
+	if err != nil {
+		return errors.New("course not found")
+	}
+
+	if course.OwnerID != parsedOwnerID {
+		return errors.New("you do not own this course")
+	}
+
+	member, err := s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
+		CourseID: parsedCourseID,
+		UserID:   parsedTargetID,
+	})
+	if err != nil {
+		return errors.New("user is not a member of this course")
+	}
+
+	if member.Role == "lecturer" && parsedTargetID == parsedOwnerID {
+		return errors.New("you cannot remove yourself from the course — delete the course instead")
+	}
+
+	if err := s.attendanceRepo.DeleteAttendanceRecordsByUserAndCourse(ctx, parsedTargetID, parsedCourseID); err != nil {
+		return errors.New("could not remove attendance records")
+	}
+
+	if err := s.courseRepo.RemoveCourseMember(ctx, parsedCourseID, parsedTargetID); err != nil {
+		return errors.New("could not remove member")
+	}
+
+	return nil
+}
+
+func (s *CourseService) RotateInviteCode(ctx context.Context, userID string, courseID string) (string, error) {
+	parsedCourseID, err := parseUUID(courseID)
+	if err != nil {
+		return "", errors.New("invalid course_id")
+	}
+
+	parsedUserID, err := parseUUID(userID)
+	if err != nil {
+		return "", err
+	}
+
+	course, err := s.courseRepo.GetCourseByID(ctx, parsedCourseID)
+	if err != nil {
+		return "", errors.New("course not found")
+	}
+
+	if course.OwnerID != parsedUserID {
+		return "", errors.New("you do not own this course")
+	}
+
+	newInviteCode, err := generateInvitationCode()
+	if err != nil {
+		return "", err
+	}
+
+	_, err = s.courseRepo.UpdateCourseInviteCode(ctx, db.UpdateCourseInviteCodeParams{
+		ID:         parsedCourseID,
+		InviteCode: newInviteCode,
+	})
+	if err != nil {
+		return "", errors.New("could not rotate invite code")
+	}
+
+	return newInviteCode, nil
+}
+
+func (s *CourseService) UpdateCourseSettings(ctx context.Context, userID string, courseID string, req model.UpdateCourseSettingsRequest) (model.CourseResponse, error) {
+	if req.ConfidenceThreshold < 0 || req.ConfidenceThreshold > 1 {
+		return model.CourseResponse{}, errors.New("confidence_threshold must be between 0.00 and 1.00")
+	}
+
+	parsedUserID, err := parseUUID(userID)
+	if err != nil {
+		return model.CourseResponse{}, errors.New("invalid user ID")
+	}
+
+	parsedCourseID, err := parseUUID(courseID)
+	if err != nil {
+		return model.CourseResponse{}, errors.New("invalid course ID")
+	}
+
+	var numericThreshold pgtype.Numeric
+	err = numericThreshold.Scan(fmt.Sprintf("%f", req.ConfidenceThreshold))
+	if err != nil {
+		return model.CourseResponse{}, errors.New("invalid threshold format")
+	}
+
+	course, err := s.courseRepo.UpdateCourseConfidenceThreshold(ctx, db.UpdateCourseConfidenceThresholdParams{
+		ConfidenceThreshold: numericThreshold,
+		ID:                  parsedCourseID,
+		OwnerID:             parsedUserID,
+	})
+	if err != nil {
+		return model.CourseResponse{}, errors.New("could not update settings or forbidden (not owner)")
+	}
+
+	thresholdVal, _ := course.ConfidenceThreshold.Float64Value()
+
+	return model.CourseResponse{
+		ID:                  course.ID.String(),
+		OwnerID:             course.OwnerID.String(),
+		Title:               course.Title,
+		Code:                course.Code,
+		Department:          course.Department.String,
+		InviteCode:          course.InviteCode,
+		ConfidenceThreshold: thresholdVal.Float64,
+		CreatedAt:           course.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+	}, nil
 }

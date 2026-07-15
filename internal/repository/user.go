@@ -25,3 +25,7 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (db.U
 func (r *UserRepository) GetUserByID(ctx context.Context, id pgtype.UUID) (db.User, error) {
 	return r.queries.GetUserByID(ctx, id)
 }
+
+func (r *UserRepository) CreateUser(ctx context.Context, params db.CreateUserParams) (db.User, error) {
+	return r.queries.CreateUser(ctx, params)
+}
