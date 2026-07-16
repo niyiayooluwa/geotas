@@ -56,6 +56,7 @@ func computeConfidenceScore(
 	duplicateDevice bool,
 	deviceSwitched bool,
 	sessionStartedAt time.Time,
+	locationAccuracy float64,
 ) float64 {
 	score := 1.0
 
@@ -88,6 +89,12 @@ func computeConfidenceScore(
 		score -= 0.20
 	}
 
+	// GPS accuracy penalty: 0m = perfect, 100m+ = max penalty of 0.15
+	// Zero is treated as "not provided" and skipped.
+	if locationAccuracy > 0 {
+		score -= math.Min(locationAccuracy/100.0, 1.0) * 0.15
+	}
+
 	return math.Max(0, math.Min(1.0, score))
 }
 
@@ -109,7 +116,7 @@ func (s *AttendanceService) MarkAttendanceQR(ctx context.Context, userID string,
 	// invalidate token
 	s.qrRepo.MarkQRTokenUsed(ctx, token.ID)
 
-	return s.mark(ctx, userID, "qr", sessionUUID, req.Latitude, req.Longitude, req.DeviceID, req.DeviceModel, req.OsVersion, req.MockLocationDetected)
+	return s.mark(ctx, userID, "qr", sessionUUID, req.Latitude, req.Longitude, req.LocationAccuracyMeters, req.DeviceID, req.DeviceModel, req.OsVersion, req.MockLocationDetected)
 }
 
 func (s *AttendanceService) MarkAttendanceOTP(ctx context.Context, userID string, req model.MarkAttendanceOTPRequest) (model.AttendanceResponse, error) {
@@ -134,7 +141,7 @@ func (s *AttendanceService) MarkAttendanceOTP(ctx context.Context, userID string
 
 	s.otpRepo.MarkOTPUsed(ctx, otp.ID)
 
-	return s.mark(ctx, userID, "otp", sessionUUID, req.Latitude, req.Longitude, req.DeviceID, req.DeviceModel, req.OsVersion, req.MockLocationDetected)
+	return s.mark(ctx, userID, "otp", sessionUUID, req.Latitude, req.Longitude, req.LocationAccuracyMeters, req.DeviceID, req.DeviceModel, req.OsVersion, req.MockLocationDetected)
 }
 
 func (s *AttendanceService) GetAttendanceBySession(ctx context.Context, userID, sessionID string) ([]model.DetailedAttendanceResponse, error) {
@@ -199,6 +206,7 @@ func (s *AttendanceService) mark(
 	method string,
 	sessionUUID pgtype.UUID,
 	lat, lon float64,
+	locationAccuracy float64,
 	deviceID, deviceModel, osVersion string,
 	mockDetected bool,
 ) (model.AttendanceResponse, error) {
@@ -259,6 +267,7 @@ func (s *AttendanceService) mark(
 		duplicateDevice,
 		deviceSwitched,
 		session.StartedAt.Time,
+		locationAccuracy,
 	)
 
 	course, err := s.courseRepo.GetCourseByID(ctx, session.CourseID)
