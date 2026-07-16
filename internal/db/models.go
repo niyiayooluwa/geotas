@@ -132,18 +132,19 @@ type Schedule struct {
 }
 
 type Session struct {
-	ID             pgtype.UUID
-	CourseID       pgtype.UUID
-	CreatedBy      pgtype.UUID
-	Title          pgtype.Text
-	WeekNumber     int32
-	Latitude       float64
-	Longitude      float64
-	RadiusMeters   float64
-	QrRotationSecs int32
-	Status         string
-	StartedAt      pgtype.Timestamptz
-	ClosedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	CourseID        pgtype.UUID
+	CreatedBy       pgtype.UUID
+	Title           pgtype.Text
+	WeekNumber      int32
+	Latitude        float64
+	Longitude       float64
+	RadiusMeters    float64
+	QrRotationSecs  int32
+	Status          string
+	StartedAt       pgtype.Timestamptz
+	ClosedAt        pgtype.Timestamptz
+	OtpRotationSecs int32
 }
 
 type User struct {

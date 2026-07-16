@@ -8,9 +8,10 @@ INSERT INTO sessions (
     longitude,
     radius_meters,
     qr_rotation_secs,
+    otp_rotation_secs,
     status
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, 'active'
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, 'active'
 )
 RETURNING *;
 

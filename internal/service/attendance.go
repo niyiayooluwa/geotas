@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -113,8 +114,8 @@ func (s *AttendanceService) MarkAttendanceQR(ctx context.Context, userID string,
 		return model.AttendanceResponse{}, errors.New("Token does not belong to this session")
 	}
 
-	// invalidate token
-	s.qrRepo.MarkQRTokenUsed(ctx, token.ID)
+	// invalidate token — fire and forget, result is not needed
+	go s.qrRepo.MarkQRTokenUsed(ctx, token.ID)
 
 	return s.mark(ctx, userID, "qr", sessionUUID, req.Latitude, req.Longitude, req.LocationAccuracyMeters, req.DeviceID, req.DeviceModel, req.OsVersion, req.MockLocationDetected)
 }
@@ -229,33 +230,70 @@ func (s *AttendanceService) mark(
 		return model.AttendanceResponse{}, errors.New("Mock location detected — attendance cannot be marked")
 	}
 
-	// enrollment check
-	_, err = s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
-		CourseID: session.CourseID,
-		UserID:   userUUID,
-	})
-	if err != nil {
+	// --- parallel DB checks -------------------------------------------
+	// These 5 queries are fully independent of each other; run them
+	// concurrently to reduce total latency from ~5 RTTs to ~1 RTT.
+	var (
+		wg              sync.WaitGroup
+		enrollErr       error
+		isDuplicate     bool
+		duplicateDevice bool
+		deviceSwitched  bool
+		threshold       float64
+		thresholdErr    error
+	)
+
+	wg.Add(5)
+
+	go func() {
+		defer wg.Done()
+		_, err := s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
+			CourseID: session.CourseID,
+			UserID:   userUUID,
+		})
+		enrollErr = err
+	}()
+
+	go func() {
+		defer wg.Done()
+		_, err := s.attendanceRepo.GetAttendanceByUserAndSession(ctx, userUUID, sessionUUID)
+		isDuplicate = err == nil
+	}()
+
+	go func() {
+		defer wg.Done()
+		_, err := s.attendanceRepo.CheckDuplicateDevice(ctx, sessionUUID, deviceID)
+		duplicateDevice = err == nil
+	}()
+
+	go func() {
+		defer wg.Done()
+		priorDeviceID, err := s.attendanceRepo.GetPrimaryDeviceForUser(ctx, userUUID, session.CourseID)
+		deviceSwitched = err == nil && priorDeviceID != deviceID
+	}()
+
+	go func() {
+		defer wg.Done()
+		course, err := s.courseRepo.GetCourseByID(ctx, session.CourseID)
+		if err != nil {
+			thresholdErr = errors.New("Course not found")
+			return
+		}
+		threshVal, _ := course.ConfidenceThreshold.Float64Value()
+		threshold = threshVal.Float64
+	}()
+
+	wg.Wait()
+	// ------------------------------------------------------------------
+
+	if enrollErr != nil {
 		return model.AttendanceResponse{}, errors.New("Not enrolled in course")
 	}
-
-	// duplicate attendance check
-	_, err = s.attendanceRepo.GetAttendanceByUserAndSession(ctx, userUUID, sessionUUID)
-	if err == nil {
+	if isDuplicate {
 		return model.AttendanceResponse{}, errors.New("Attendance already marked")
 	}
-
-	// duplicate device in this session — flag, do not block
-	duplicateDevice := false
-	_, err = s.attendanceRepo.CheckDuplicateDevice(ctx, sessionUUID, deviceID)
-	if err == nil {
-		duplicateDevice = true
-	}
-
-	// device switching — compare against prior closed sessions in this course
-	deviceSwitched := false
-	priorDeviceID, err := s.attendanceRepo.GetPrimaryDeviceForUser(ctx, userUUID, session.CourseID)
-	if err == nil && priorDeviceID != deviceID {
-		deviceSwitched = true
+	if thresholdErr != nil {
+		return model.AttendanceResponse{}, thresholdErr
 	}
 
 	dist := calculateDistance(lat, lon, session.Latitude, session.Longitude)
@@ -270,13 +308,7 @@ func (s *AttendanceService) mark(
 		locationAccuracy,
 	)
 
-	course, err := s.courseRepo.GetCourseByID(ctx, session.CourseID)
-	if err != nil {
-		return model.AttendanceResponse{}, errors.New("Course not found")
-	}
-
-	thresholdVal, _ := course.ConfidenceThreshold.Float64Value()
-	if score < thresholdVal.Float64 {
+	if score < threshold {
 		return model.AttendanceResponse{}, errors.New("Attendance rejected: confidence score too low")
 	}
 

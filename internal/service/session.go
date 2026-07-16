@@ -47,6 +47,11 @@ func (s *SessionService) CreateSession(ctx context.Context, userID string, req m
 		req.QrRotationSecs = 30
 	}
 
+	// default OTP rotation to 60 seconds if not provided
+	if req.OtpRotationSecs <= 0 {
+		req.OtpRotationSecs = 60
+	}
+
 	// parse UUIDs
 	createdBy, err := parseUUID(userID)
 	if err != nil {
@@ -80,11 +85,12 @@ func (s *SessionService) CreateSession(ctx context.Context, userID string, req m
 			String: req.Title,
 			Valid:  req.Title != "",
 		},
-		WeekNumber:     req.WeekNumber,
-		Latitude:       req.Latitude,
-		Longitude:      req.Longitude,
-		RadiusMeters:   req.RadiusMeters,
-		QrRotationSecs: req.QrRotationSecs,
+		WeekNumber:      req.WeekNumber,
+		Latitude:        req.Latitude,
+		Longitude:       req.Longitude,
+		RadiusMeters:    req.RadiusMeters,
+		QrRotationSecs:  req.QrRotationSecs,
+		OtpRotationSecs: req.OtpRotationSecs,
 	})
 	if err != nil {
 		return model.SessionResponse{}, errors.New("could not create session")
@@ -172,18 +178,19 @@ func buildSessionResponse(session db.Session) model.SessionResponse {
 	}
 
 	return model.SessionResponse{
-		ID:             session.ID.String(),
-		CourseID:       session.CourseID.String(),
-		CreatedBy:      session.CreatedBy.String(),
-		Title:          session.Title.String,
-		WeekNumber:     session.WeekNumber,
-		Latitude:       session.Latitude,
-		Longitude:      session.Longitude,
-		RadiusMeters:   session.RadiusMeters,
-		QrRotationSecs: session.QrRotationSecs,
-		Status:         session.Status,
-		StartedAt:      session.StartedAt.Time.Format("2006-01-02 15:04:05"),
-		ClosedAt:       closedAt,
+		ID:              session.ID.String(),
+		CourseID:        session.CourseID.String(),
+		CreatedBy:       session.CreatedBy.String(),
+		Title:           session.Title.String,
+		WeekNumber:      session.WeekNumber,
+		Latitude:        session.Latitude,
+		Longitude:       session.Longitude,
+		RadiusMeters:    session.RadiusMeters,
+		QrRotationSecs:  session.QrRotationSecs,
+		OtpRotationSecs: session.OtpRotationSecs,
+		Status:          session.Status,
+		StartedAt:       session.StartedAt.Time.Format("2006-01-02 15:04:05"),
+		ClosedAt:        closedAt,
 	}
 }
 

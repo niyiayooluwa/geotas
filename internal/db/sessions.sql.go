@@ -15,7 +15,7 @@ const closeSession = `-- name: CloseSession :one
 UPDATE sessions
 SET status = 'closed', closed_at = NOW()
 WHERE id = $1
-RETURNING id, course_id, created_by, title, week_number, latitude, longitude, radius_meters, qr_rotation_secs, status, started_at, closed_at
+RETURNING id, course_id, created_by, title, week_number, latitude, longitude, radius_meters, qr_rotation_secs, status, started_at, closed_at, otp_rotation_secs
 `
 
 func (q *Queries) CloseSession(ctx context.Context, id pgtype.UUID) (Session, error) {
@@ -34,6 +34,7 @@ func (q *Queries) CloseSession(ctx context.Context, id pgtype.UUID) (Session, er
 		&i.Status,
 		&i.StartedAt,
 		&i.ClosedAt,
+		&i.OtpRotationSecs,
 	)
 	return i, err
 }
@@ -48,22 +49,24 @@ INSERT INTO sessions (
     longitude,
     radius_meters,
     qr_rotation_secs,
+    otp_rotation_secs,
     status
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, 'active'
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, 'active'
 )
-RETURNING id, course_id, created_by, title, week_number, latitude, longitude, radius_meters, qr_rotation_secs, status, started_at, closed_at
+RETURNING id, course_id, created_by, title, week_number, latitude, longitude, radius_meters, qr_rotation_secs, status, started_at, closed_at, otp_rotation_secs
 `
 
 type CreateSessionParams struct {
-	CourseID       pgtype.UUID
-	CreatedBy      pgtype.UUID
-	Title          pgtype.Text
-	WeekNumber     int32
-	Latitude       float64
-	Longitude      float64
-	RadiusMeters   float64
-	QrRotationSecs int32
+	CourseID        pgtype.UUID
+	CreatedBy       pgtype.UUID
+	Title           pgtype.Text
+	WeekNumber      int32
+	Latitude        float64
+	Longitude       float64
+	RadiusMeters    float64
+	QrRotationSecs  int32
+	OtpRotationSecs int32
 }
 
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error) {
@@ -76,6 +79,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 		arg.Longitude,
 		arg.RadiusMeters,
 		arg.QrRotationSecs,
+		arg.OtpRotationSecs,
 	)
 	var i Session
 	err := row.Scan(
@@ -91,6 +95,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 		&i.Status,
 		&i.StartedAt,
 		&i.ClosedAt,
+		&i.OtpRotationSecs,
 	)
 	return i, err
 }
@@ -106,7 +111,7 @@ func (q *Queries) DeleteSession(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getActiveSessionByCourse = `-- name: GetActiveSessionByCourse :one
-SELECT id, course_id, created_by, title, week_number, latitude, longitude, radius_meters, qr_rotation_secs, status, started_at, closed_at FROM sessions
+SELECT id, course_id, created_by, title, week_number, latitude, longitude, radius_meters, qr_rotation_secs, status, started_at, closed_at, otp_rotation_secs FROM sessions
 WHERE course_id = $1 AND status = 'active'
 `
 
@@ -126,12 +131,13 @@ func (q *Queries) GetActiveSessionByCourse(ctx context.Context, courseID pgtype.
 		&i.Status,
 		&i.StartedAt,
 		&i.ClosedAt,
+		&i.OtpRotationSecs,
 	)
 	return i, err
 }
 
 const getSessionByID = `-- name: GetSessionByID :one
-SELECT id, course_id, created_by, title, week_number, latitude, longitude, radius_meters, qr_rotation_secs, status, started_at, closed_at FROM sessions
+SELECT id, course_id, created_by, title, week_number, latitude, longitude, radius_meters, qr_rotation_secs, status, started_at, closed_at, otp_rotation_secs FROM sessions
 WHERE id = $1
 `
 
@@ -151,12 +157,13 @@ func (q *Queries) GetSessionByID(ctx context.Context, id pgtype.UUID) (Session, 
 		&i.Status,
 		&i.StartedAt,
 		&i.ClosedAt,
+		&i.OtpRotationSecs,
 	)
 	return i, err
 }
 
 const getSessionsByCourse = `-- name: GetSessionsByCourse :many
-SELECT id, course_id, created_by, title, week_number, latitude, longitude, radius_meters, qr_rotation_secs, status, started_at, closed_at FROM sessions
+SELECT id, course_id, created_by, title, week_number, latitude, longitude, radius_meters, qr_rotation_secs, status, started_at, closed_at, otp_rotation_secs FROM sessions
 WHERE course_id = $1
 ORDER BY started_at DESC
 `
@@ -183,6 +190,7 @@ func (q *Queries) GetSessionsByCourse(ctx context.Context, courseID pgtype.UUID)
 			&i.Status,
 			&i.StartedAt,
 			&i.ClosedAt,
+			&i.OtpRotationSecs,
 		); err != nil {
 			return nil, err
 		}
