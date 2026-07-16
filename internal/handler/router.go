@@ -42,8 +42,8 @@ func NewRouter(queries *db.Queries, authService *service.AuthService) *chi.Mux {
 	var scheduleService *service.ScheduleService = service.NewScheduleService(scheduleRepo, courseRepo, notifService)
 	var courseService *service.CourseService = service.NewCourseService(courseRepo, sessionRepo, attendanceRepo)
 	var qrManager *service.QRRotationManager = service.NewQRRotationManager(qrRepo)
-	var sessionService *service.SessionService = service.NewSessionService(sessionRepo, courseRepo, qrManager, notifService)
-	var otpService *service.OTPService = service.NewOTPService(otpRepo, sessionRepo, courseRepo)
+	var otpManager *service.OTPRotationManager = service.NewOTPRotationManager(otpRepo)
+	var sessionService *service.SessionService = service.NewSessionService(sessionRepo, courseRepo, qrManager, otpManager, notifService)
 	var attendanceService *service.AttendanceService = service.NewAttendanceService(attendanceRepo, sessionRepo, courseRepo, qrRepo, otpRepo)
 
 	// wire up handlers
@@ -51,7 +51,7 @@ func NewRouter(queries *db.Queries, authService *service.AuthService) *chi.Mux {
 	var userHandler *UserHandler = NewUserHandler(authService)
 	var courseHandler *CourseHandler = NewCourseHandler(courseService)
 	var sessionHandler *SessionHandler = NewSessionHandler(sessionService)
-	var attendanceHandler *AttendanceHandler = NewAttendanceHandler(attendanceService, otpService)
+	var attendanceHandler *AttendanceHandler = NewAttendanceHandler(attendanceService)
 	var notifHandler *NotificationHandler = NewNotificationHandler(notifService)
 	var scheduleHandler *ScheduleHandler = NewScheduleHandler(scheduleService)
 
@@ -86,10 +86,10 @@ func NewRouter(queries *db.Queries, authService *service.AuthService) *chi.Mux {
 		r.Patch("/sessions/{id}/close", sessionHandler.CloseSession)
 		r.Delete("/sessions/{id}", sessionHandler.DeleteSession)
 		r.Get("/sessions/{id}/qr-token", sessionHandler.GetLiveQRToken)
+		r.Get("/sessions/{id}/otp-token", sessionHandler.GetLiveOTPToken)
 		r.Get("/sessions/{id}/attendance", attendanceHandler.GetAttendanceBySession)
 
 		r.Post("/attendance/qr", attendanceHandler.MarkAttendanceQR)
-		r.Post("/attendance/otp/request", attendanceHandler.RequestOTP)
 		r.Post("/attendance/otp/verify", attendanceHandler.MarkAttendanceOTP)
 
 		r.With(middleware.RequireRole("lecturer")).Post("/courses/{id}/schedules", scheduleHandler.CreateSchedule)

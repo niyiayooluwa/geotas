@@ -121,10 +121,6 @@ func (s *AttendanceService) MarkAttendanceQR(ctx context.Context, userID string,
 }
 
 func (s *AttendanceService) MarkAttendanceOTP(ctx context.Context, userID string, req model.MarkAttendanceOTPRequest) (model.AttendanceResponse, error) {
-	userUUID, err := parseUUID(userID)
-	if err != nil {
-		return model.AttendanceResponse{}, err
-	}
 
 	sessionUUID, err := parseUUID(req.SessionID)
 	if err != nil {
@@ -132,7 +128,6 @@ func (s *AttendanceService) MarkAttendanceOTP(ctx context.Context, userID string
 	}
 
 	otp, err := s.otpRepo.GetValidOTP(ctx, db.GetValidOTPParams{
-		UserID:    userUUID,
 		SessionID: sessionUUID,
 		Code:      req.OTPCode,
 	})

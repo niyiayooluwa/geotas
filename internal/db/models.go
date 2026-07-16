@@ -104,7 +104,6 @@ type Notification struct {
 type OtpCode struct {
 	ID        pgtype.UUID
 	SessionID pgtype.UUID
-	UserID    pgtype.UUID
 	Code      string
 	IssuedAt  pgtype.Timestamptz
 	ExpiresAt pgtype.Timestamptz

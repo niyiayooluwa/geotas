@@ -15,14 +15,16 @@ type SessionService struct {
 	sessionRepo  *repository.SessionRepository
 	courseRepo   *repository.CourseRepository
 	qrManager    *QRRotationManager
+	otpManager   *OTPRotationManager
 	notifService *NotificationService
 }
 
-func NewSessionService(sessionRepo *repository.SessionRepository, courseRepo *repository.CourseRepository, qrManager *QRRotationManager, notifService *NotificationService) *SessionService {
+func NewSessionService(sessionRepo *repository.SessionRepository, courseRepo *repository.CourseRepository, qrManager *QRRotationManager, otpManager *OTPRotationManager, notifService *NotificationService) *SessionService {
 	return &SessionService{
 		sessionRepo:  sessionRepo,
 		courseRepo:   courseRepo,
 		qrManager:    qrManager,
+		otpManager:   otpManager,
 		notifService: notifService,
 	}
 }
@@ -97,6 +99,7 @@ func (s *SessionService) CreateSession(ctx context.Context, userID string, req m
 	}
 
 	s.qrManager.StartRotation(session.ID.String(), session.QrRotationSecs)
+	s.otpManager.StartRotation(session.ID.String(), session.OtpRotationSecs)
 
 	// Trigger Notification
 	payload, _ := json.Marshal(map[string]string{
@@ -147,6 +150,7 @@ func (s *SessionService) CloseSession(ctx context.Context, userID string, sessio
 	}
 
 	s.qrManager.StopRotation(closed.ID.String())
+	s.otpManager.StopRotation(closed.ID.String())
 
 	return buildSessionResponse(closed), nil
 }
@@ -221,6 +225,33 @@ func (s *SessionService) GetLiveQRToken(ctx context.Context, userID string, sess
     return s.qrManager.GetCurrentToken(sessionID, session.CourseID.String())
 }
 
+func (s *SessionService) GetLiveOTPToken(ctx context.Context, userID string, sessionID string) (model.OTPResponse, error) {
+    parsedSessionID, err := parseUUID(sessionID)
+    if err != nil {
+        return model.OTPResponse{}, errors.New("Invalid session_id")
+    }
+
+    parsedUserID, err := parseUUID(userID)
+    if err != nil {
+        return model.OTPResponse{}, err
+    }
+
+    session, err := s.sessionRepo.GetSessionByID(ctx, parsedSessionID)
+    if err != nil {
+        return model.OTPResponse{}, errors.New("Session not found")
+    }
+
+    member, err := s.courseRepo.GetCourseMember(ctx, db.GetCourseMemberParams{
+		CourseID: session.CourseID,
+		UserID:   parsedUserID,
+	})
+    if err != nil || member.Role != "lecturer" {
+        return model.OTPResponse{}, errors.New("you do not have permission to access this session")
+    }
+
+    return s.otpManager.GetCurrentToken(sessionID)
+}
+
 func (s *SessionService) DeleteSession(ctx context.Context, userID string, sessionID string) error {
 	parsedSessionID, err := parseUUID(sessionID)
 	if err != nil {
@@ -249,6 +280,7 @@ func (s *SessionService) DeleteSession(ctx context.Context, userID string, sessi
 
 	// stop rotation if session was active
 	s.qrManager.StopRotation(sessionID)
+	s.otpManager.StopRotation(sessionID)
 
 	return s.sessionRepo.DeleteSession(ctx, parsedSessionID)
 }

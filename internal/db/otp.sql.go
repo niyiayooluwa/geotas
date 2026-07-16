@@ -14,34 +14,49 @@ import (
 const createOTP = `-- name: CreateOTP :one
 INSERT INTO otp_codes (
     session_id,
-    user_id,
     code,
     expires_at
 ) VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3
 )
-RETURNING id, session_id, user_id, code, issued_at, expires_at, used
+RETURNING id, session_id, code, issued_at, expires_at, used
 `
 
 type CreateOTPParams struct {
 	SessionID pgtype.UUID
-	UserID    pgtype.UUID
 	Code      string
 	ExpiresAt pgtype.Timestamptz
 }
 
 func (q *Queries) CreateOTP(ctx context.Context, arg CreateOTPParams) (OtpCode, error) {
-	row := q.db.QueryRow(ctx, createOTP,
-		arg.SessionID,
-		arg.UserID,
-		arg.Code,
-		arg.ExpiresAt,
-	)
+	row := q.db.QueryRow(ctx, createOTP, arg.SessionID, arg.Code, arg.ExpiresAt)
 	var i OtpCode
 	err := row.Scan(
 		&i.ID,
 		&i.SessionID,
-		&i.UserID,
+		&i.Code,
+		&i.IssuedAt,
+		&i.ExpiresAt,
+		&i.Used,
+	)
+	return i, err
+}
+
+const getLatestOTPBySession = `-- name: GetLatestOTPBySession :one
+SELECT id, session_id, code, issued_at, expires_at, used FROM otp_codes
+WHERE session_id = $1
+AND used = false
+AND expires_at > NOW()
+ORDER BY issued_at DESC
+LIMIT 1
+`
+
+func (q *Queries) GetLatestOTPBySession(ctx context.Context, sessionID pgtype.UUID) (OtpCode, error) {
+	row := q.db.QueryRow(ctx, getLatestOTPBySession, sessionID)
+	var i OtpCode
+	err := row.Scan(
+		&i.ID,
+		&i.SessionID,
 		&i.Code,
 		&i.IssuedAt,
 		&i.ExpiresAt,
@@ -51,33 +66,42 @@ func (q *Queries) CreateOTP(ctx context.Context, arg CreateOTPParams) (OtpCode, 
 }
 
 const getValidOTP = `-- name: GetValidOTP :one
-SELECT id, session_id, user_id, code, issued_at, expires_at, used FROM otp_codes
-WHERE user_id = $1 
-  AND session_id = $2 
-  AND code = $3 
+SELECT id, session_id, code, issued_at, expires_at, used FROM otp_codes
+WHERE session_id = $1 
+  AND code = $2 
   AND used = false 
   AND expires_at > NOW()
 `
 
 type GetValidOTPParams struct {
-	UserID    pgtype.UUID
 	SessionID pgtype.UUID
 	Code      string
 }
 
 func (q *Queries) GetValidOTP(ctx context.Context, arg GetValidOTPParams) (OtpCode, error) {
-	row := q.db.QueryRow(ctx, getValidOTP, arg.UserID, arg.SessionID, arg.Code)
+	row := q.db.QueryRow(ctx, getValidOTP, arg.SessionID, arg.Code)
 	var i OtpCode
 	err := row.Scan(
 		&i.ID,
 		&i.SessionID,
-		&i.UserID,
 		&i.Code,
 		&i.IssuedAt,
 		&i.ExpiresAt,
 		&i.Used,
 	)
 	return i, err
+}
+
+const invalidatePreviousOTPs = `-- name: InvalidatePreviousOTPs :exec
+UPDATE otp_codes
+SET used = true
+WHERE session_id = $1
+AND used = false
+`
+
+func (q *Queries) InvalidatePreviousOTPs(ctx context.Context, sessionID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, invalidatePreviousOTPs, sessionID)
+	return err
 }
 
 const markOTPUsed = `-- name: MarkOTPUsed :exec
