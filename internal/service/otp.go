@@ -73,8 +73,10 @@ func (m *OTPRotationManager) StopRotation(sessionID string) {
 func (m *OTPRotationManager) rotateToken(sessionUUID pgtype.UUID, rotationSecs int32) {
 	ctx := context.Background()
 
-	// Invalidate previous OTPs for this session
-	m.otpRepo.InvalidatePreviousOTPs(ctx, sessionUUID)
+	// We no longer aggressively invalidate previous OTPs.
+	// We rely strictly on the expires_at timestamp in the DB to naturally kill them.
+	// This creates an overlapping window where two tokens are mathematically valid simultaneously,
+	// which perfectly accommodates network latency.
 
 	// Generate and save new OTP with some grace period buffer (15s)
 	now := time.Now()

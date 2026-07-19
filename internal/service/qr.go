@@ -91,8 +91,10 @@ func (m *QRRotationManager) StopRotation(sessionID string) {
 func (m *QRRotationManager) rotateToken(sessionUUID pgtype.UUID, sessionID string, rotationSecs int32) {
 	var ctx context.Context = context.Background()
 
-	// invalidate all previous tokens for this session
-	m.qrRepo.InvalidatePreviousTokens(ctx, sessionUUID)
+	// We no longer aggressively invalidate previous tokens.
+	// We rely strictly on the expires_at timestamp in the DB to naturally kill them.
+	// This creates an overlapping window where two tokens are mathematically valid simultaneously,
+	// which perfectly accommodates network latency.
 
 	// generate new signed token
 	var now time.Time = time.Now()
