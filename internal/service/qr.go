@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -16,18 +15,14 @@ import (
 	"github.com/niyiayooluwa/geotas/internal/repository"
 )
 
-// QRRotationManager manages all active QR rotation goroutines
-// one goroutine per active session
+// QRRotationManager generates tokens on demand (stateless)
 type QRRotationManager struct {
-	qrRepo   *repository.QRTokenRepository
-	stopChans map[string]chan struct{}  // sessionID → stop signal channel
-	mu        sync.Mutex               // protects the map from concurrent access
+	qrRepo *repository.QRTokenRepository
 }
 
 func NewQRRotationManager(qrRepo *repository.QRTokenRepository) *QRRotationManager {
 	return &QRRotationManager{
-		qrRepo:    qrRepo,
-		stopChans: make(map[string]chan struct{}),
+		qrRepo: qrRepo,
 	}
 }
 
@@ -39,82 +34,35 @@ func generateQRToken(sessionID string, timestamp time.Time) string {
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-// StartRotation launches a goroutine that rotates QR tokens for a session
-func (m *QRRotationManager) StartRotation(sessionID string, rotationSecs int32) {
-	// create a stop channel for this session
-	var stopChan chan struct{} = make(chan struct{})
 
-	// store it so we can stop it later
-	m.mu.Lock()
-	m.stopChans[sessionID] = stopChan
-	m.mu.Unlock()
-
-	// parse sessionID into pgtype.UUID for DB calls
-	var sessionUUID pgtype.UUID
-	sessionUUID.Scan(sessionID)
-
-	// launch the goroutine
-	go func() {
-		// generate first token immediately
-		m.rotateToken(sessionUUID, sessionID, rotationSecs)
-
-		// set up ticker for subsequent rotations
-		var ticker *time.Ticker = time.NewTicker(time.Duration(rotationSecs) * time.Second)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ticker.C:
-				// ticker fired — rotate the token
-				m.rotateToken(sessionUUID, sessionID, rotationSecs)
-
-			case <-stopChan:
-				// stop signal received — session closed, exit goroutine
-				return
-			}
-		}
-	}()
-}
-
-// StopRotation sends a stop signal to the goroutine for a session
-func (m *QRRotationManager) StopRotation(sessionID string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if stopChan, exists := m.stopChans[sessionID]; exists {
-		close(stopChan)
-		delete(m.stopChans, sessionID)
-	}
-}
-
-// rotateToken invalidates old tokens and generates a new one
-func (m *QRRotationManager) rotateToken(sessionUUID pgtype.UUID, sessionID string, rotationSecs int32) {
-	var ctx context.Context = context.Background()
-
-	// We no longer aggressively invalidate previous tokens.
-	// We rely strictly on the expires_at timestamp in the DB to naturally kill them.
-	// This creates an overlapping window where two tokens are mathematically valid simultaneously,
-	// which perfectly accommodates network latency.
-
-	// generate new signed token
-	var now time.Time = time.Now()
-	var token string = generateQRToken(sessionID, now)
-
-	// store in DB with expiry = now + rotation window + small buffer
-	expiry := now.Add(time.Duration(rotationSecs)*time.Second + 10*time.Second)
-	m.qrRepo.CreateQRToken(ctx, sessionUUID, token, expiry)
-}
-
-// GetCurrentToken returns the latest valid token for a session
-func (m *QRRotationManager) GetCurrentToken(sessionID string, courseID string) (model.QRTokenResponse, error) {
+// GetCurrentToken lazily generates or returns the active token for a session
+func (m *QRRotationManager) GetCurrentToken(sessionID string, courseID string, rotationSecs int32) (model.QRTokenResponse, error) {
     var sessionUUID pgtype.UUID
     if err := sessionUUID.Scan(sessionID); err != nil {
         return model.QRTokenResponse{}, fmt.Errorf("Invalid Session ID")
     }
 
-    token, err := m.qrRepo.GetLatestQRTokenBySession(context.Background(), sessionUUID)
+    var ctx context.Context = context.Background()
+    token, err := m.qrRepo.GetLatestQRTokenBySession(ctx, sessionUUID)
+    
+    var needsNewToken bool = false
     if err != nil {
-        return model.QRTokenResponse{}, fmt.Errorf("No active token found for session")
+        needsNewToken = true
+    } else {
+        strictExpiry := token.ExpiresAt.Time.Add(-10 * time.Second)
+        if time.Now().After(strictExpiry) {
+            needsNewToken = true
+        }
+    }
+
+    if needsNewToken {
+        now := time.Now()
+        newTokenStr := generateQRToken(sessionID, now)
+        expiry := now.Add(time.Duration(rotationSecs)*time.Second + 10*time.Second)
+        token, err = m.qrRepo.CreateQRToken(ctx, sessionUUID, newTokenStr, expiry)
+        if err != nil {
+            return model.QRTokenResponse{}, fmt.Errorf("Failed to generate QR token")
+        }
     }
 
 	payload:= model.QRPayload{
@@ -128,8 +76,9 @@ func (m *QRRotationManager) GetCurrentToken(sessionID string, courseID string) (
 		return model.QRTokenResponse{}, fmt.Errorf("Failed to encode QR payload")
 	}
 
+	// Hide the 10s grace period from the frontend so their UI timer is perfectly accurate
     return model.QRTokenResponse{
 		QRContent: string(payloadBytes),
-		ExpiresAt: token.ExpiresAt.Time.Format(time.RFC3339),
+		ExpiresAt: token.ExpiresAt.Time.Add(-10 * time.Second).Format(time.RFC3339),
 	}, nil
 }

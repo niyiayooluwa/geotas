@@ -98,8 +98,7 @@ func (s *SessionService) CreateSession(ctx context.Context, userID string, req m
 		return model.SessionResponse{}, errors.New("could not create session")
 	}
 
-	s.qrManager.StartRotation(session.ID.String(), session.QrRotationSecs)
-	s.otpManager.StartRotation(session.ID.String(), session.OtpRotationSecs)
+	// Tokens will now be lazily generated on demand via GetCurrentToken
 
 	// Trigger Notification
 	payload, _ := json.Marshal(map[string]string{
@@ -149,8 +148,7 @@ func (s *SessionService) CloseSession(ctx context.Context, userID string, sessio
 		return model.SessionResponse{}, errors.New("could not close session")
 	}
 
-	s.qrManager.StopRotation(closed.ID.String())
-	s.otpManager.StopRotation(closed.ID.String())
+	// Rotation managers are now stateless, no need to stop any goroutines
 
 	return buildSessionResponse(closed), nil
 }
@@ -222,7 +220,7 @@ func (s *SessionService) GetLiveQRToken(ctx context.Context, userID string, sess
         return model.QRTokenResponse{}, errors.New("you do not have permission to access this session")
     }
 
-    return s.qrManager.GetCurrentToken(sessionID, session.CourseID.String())
+    return s.qrManager.GetCurrentToken(sessionID, session.CourseID.String(), session.QrRotationSecs)
 }
 
 func (s *SessionService) GetLiveOTPToken(ctx context.Context, userID string, sessionID string) (model.OTPResponse, error) {
@@ -249,7 +247,7 @@ func (s *SessionService) GetLiveOTPToken(ctx context.Context, userID string, ses
         return model.OTPResponse{}, errors.New("you do not have permission to access this session")
     }
 
-    return s.otpManager.GetCurrentToken(sessionID)
+    return s.otpManager.GetCurrentToken(sessionID, session.OtpRotationSecs)
 }
 
 func (s *SessionService) DeleteSession(ctx context.Context, userID string, sessionID string) error {
@@ -278,9 +276,7 @@ func (s *SessionService) DeleteSession(ctx context.Context, userID string, sessi
 		return errors.New("you do not have permission to delete this session")
 	}
 
-	// stop rotation if session was active
-	s.qrManager.StopRotation(sessionID)
-	s.otpManager.StopRotation(sessionID)
+	// Rotation managers are now stateless, no need to stop any goroutines
 
 	return s.sessionRepo.DeleteSession(ctx, parsedSessionID)
 }
