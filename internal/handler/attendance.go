@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -31,6 +32,7 @@ func (h *AttendanceHandler) MarkAttendanceQR(w http.ResponseWriter, r *http.Requ
 
 	response, err := h.attendanceService.MarkAttendanceQR(r.Context(), userID, req)
 	if err != nil {
+		log.Printf("[AttendanceQR Error] UserID: %s, Error: %v\n", userID, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -51,6 +53,7 @@ func (h *AttendanceHandler) MarkAttendanceOTP(w http.ResponseWriter, r *http.Req
 
 	response, err := h.attendanceService.MarkAttendanceOTP(r.Context(), userID, req)
 	if err != nil {
+		log.Printf("[AttendanceOTP Error] UserID: %s, Error: %v\n", userID, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
