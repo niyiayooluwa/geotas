@@ -52,13 +52,24 @@ func (s *AuthService) GoogleLogin(ctx context.Context, req model.GoogleLoginRequ
 		}
 	}
 
+	var dept string
+	if req.Department != nil {
+		dept = *req.Department
+	}
+	var matric pgtype.Text
+	if req.MatricNumber != nil {
+		matric = pgtype.Text{String: *req.MatricNumber, Valid: true}
+	}
+
 	// 3. Upsert user
 	user, err := s.userRepo.UpsertGoogleUser(ctx, db.UpsertGoogleUserParams{
-		Email:     email,
-		GoogleID:  pgtype.Text{String: googleID, Valid: true},
-		FirstName: firstName,
-		LastName:  lastName,
-		AvatarUrl: pgtype.Text{String: avatarURL, Valid: avatarURL != ""},
+		Email:        email,
+		GoogleID:     pgtype.Text{String: googleID, Valid: true},
+		FirstName:    firstName,
+		LastName:     lastName,
+		AvatarUrl:    pgtype.Text{String: avatarURL, Valid: avatarURL != ""},
+		Department:   dept,
+		MatricNumber: matric,
 	})
 	if err != nil {
 		return model.LoginResponse{}, errors.New("could not save user data")
@@ -115,14 +126,21 @@ func (s *AuthService) GetUserProfile(ctx context.Context, userID string) (model.
 		avatarURL = &user.AvatarUrl.String
 	}
 
+	var matricNumber *string
+	if user.MatricNumber.Valid {
+		matricNumber = &user.MatricNumber.String
+	}
+
 	return model.UserResponse{
-		ID:        user.ID.String(),
-		FirstName: user.FirstName,
-		LastName:  user.LastName,
-		Email:     user.Email,
-		AvatarURL: avatarURL,
-		CreatedAt: user.CreatedAt.Time.Format(time.RFC3339),
-		Role:      string(user.Role),
+		ID:           user.ID.String(),
+		FirstName:    user.FirstName,
+		LastName:     user.LastName,
+		Email:        user.Email,
+		AvatarURL:    avatarURL,
+		Department:   user.Department,
+		MatricNumber: matricNumber,
+		CreatedAt:    user.CreatedAt.Time.Format(time.RFC3339),
+		Role:         string(user.Role),
 	}, nil
 }
 
@@ -172,6 +190,7 @@ func (s *AuthService) RegisterLecturer(ctx context.Context, req model.LecturerRe
 		FirstName:    req.FirstName,
 		LastName:     req.LastName,
 		Role:         db.UserRoleLecturer,
+		Department:   req.Department,
 	})
 	if err != nil {
 		return model.UserResponse{}, errors.New("could not create user")

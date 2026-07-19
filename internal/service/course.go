@@ -83,9 +83,6 @@ func (s *CourseService) CreateCourse(ctx context.Context, userID string, req mod
 		CourseID: course.ID,
 		UserID:   ownerID,
 		Role:     "lecturer",
-		MatriculationNumber: pgtype.Text{
-			Valid: false,
-		},
 		CoLecturer: false,
 	})
 	if err != nil {
@@ -107,10 +104,6 @@ func (s *CourseService) CreateCourse(ctx context.Context, userID string, req mod
 func (s *CourseService) JoinCourse(ctx context.Context, userID string, userRole string, req model.JoinCourseRequest) (model.CourseMemberResponse, error) {
 	if req.InviteCode == "" {
 		return model.CourseMemberResponse{}, errors.New("invite code is required")
-	}
-
-	if userRole != "lecturer" && req.MatriculationNumber == "" {
-		return model.CourseMemberResponse{}, errors.New("matriculation number is required to join a course")
 	}
 
 	course, err := s.courseRepo.GetCourseByInviteCode(ctx, req.InviteCode)
@@ -137,20 +130,15 @@ func (s *CourseService) JoinCourse(ctx context.Context, userID string, userRole 
 
 	roleToAssign := "student"
 	coLecturer := false
-	matNo := pgtype.Text{Valid: false}
-
 	if userRole == "lecturer" {
 		roleToAssign = "lecturer"
 		coLecturer = true
-	} else {
-		matNo = pgtype.Text{String: req.MatriculationNumber, Valid: true}
 	}
 
 	member, err := s.courseRepo.AddCourseMember(ctx, db.AddCourseMemberParams{
 		CourseID:            course.ID,
 		UserID:              studentID,
 		Role:                roleToAssign,
-		MatriculationNumber: matNo,
 		CoLecturer:          coLecturer,
 	})
 	if err != nil {
@@ -166,7 +154,6 @@ func (s *CourseService) JoinCourse(ctx context.Context, userID string, userRole 
 		CourseID:            member.CourseID.String(),
 		UserID:              member.UserID.String(),
 		Role:                member.Role,
-		MatriculationNumber: member.MatriculationNumber.String,
 		JoinedAt:            member.JoinedAt.Time.Format("2006-01-02 15:04:05"),
 	}, nil
 }
@@ -297,7 +284,7 @@ func (s *CourseService) GetCoursesByMember(ctx context.Context, userID string) (
 			InviteCode:          c.InviteCode,
 			CreatedAt:           c.CreatedAt.Time.Format("2006-01-02 15:04:05"),
 			Role:                c.Role,
-			MatriculationNumber: c.MatriculationNumber.String,
+			MatriculationNumber: c.MatricNumber.String,
 			StudentCount:        c.StudentCount,
 			ConfidenceThreshold: thresholdVal.Float64,
 		})
@@ -345,7 +332,7 @@ func (s *CourseService) GetCourseMembers(ctx context.Context, userID string, cou
 			Email:               m.Email,
 			AvatarURL:           avatarURL,
 			Role:                string(m.Role),
-			MatriculationNumber: m.MatriculationNumber.String,
+			MatriculationNumber: m.MatricNumber.String,
 			CoLecturer:          m.CoLecturer,
 			JoinedAt:            m.JoinedAt.Time.Format("2006-01-02 15:04:05"),
 		})
@@ -402,7 +389,8 @@ func (s *CourseService) GetCourseAttendance(ctx context.Context, userID string, 
 			OsVersion:           r.OsVersion.String,
 			FirstName:           r.FirstName,
 			LastName:            r.LastName,
-			MatriculationNumber: r.MatriculationNumber.String,
+			Department:          r.Department,
+			MatriculationNumber: r.MatricNumber.String,
 		})
 	}
 

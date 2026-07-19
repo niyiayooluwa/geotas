@@ -114,9 +114,6 @@ func (s *AttendanceService) MarkAttendanceQR(ctx context.Context, userID string,
 		return model.AttendanceResponse{}, errors.New("Token does not belong to this session")
 	}
 
-	// invalidate token — fire and forget, result is not needed
-	go s.qrRepo.MarkQRTokenUsed(ctx, token.ID)
-
 	return s.mark(ctx, userID, "qr", sessionUUID, req.Latitude, req.Longitude, req.LocationAccuracyMeters, req.DeviceID, req.DeviceModel, req.OsVersion, req.MockLocationDetected)
 }
 
@@ -127,15 +124,13 @@ func (s *AttendanceService) MarkAttendanceOTP(ctx context.Context, userID string
 		return model.AttendanceResponse{}, errors.New("Invalid session ID")
 	}
 
-	otp, err := s.otpRepo.GetValidOTP(ctx, db.GetValidOTPParams{
+	_, err = s.otpRepo.GetValidOTP(ctx, db.GetValidOTPParams{
 		SessionID: sessionUUID,
 		Code:      req.OTPCode,
 	})
 	if err != nil {
 		return model.AttendanceResponse{}, errors.New("Invalid or expired OTP")
 	}
-
-	s.otpRepo.MarkOTPUsed(ctx, otp.ID)
 
 	return s.mark(ctx, userID, "otp", sessionUUID, req.Latitude, req.Longitude, req.LocationAccuracyMeters, req.DeviceID, req.DeviceModel, req.OsVersion, req.MockLocationDetected)
 }
@@ -189,7 +184,8 @@ func (s *AttendanceService) GetAttendanceBySession(ctx context.Context, userID, 
 			OsVersion:            r.OsVersion.String,
 			FirstName:            r.FirstName,
 			LastName:             r.LastName,
-			MatriculationNumber:  r.MatriculationNumber.String,
+			Department:           r.Department,
+			MatriculationNumber:  r.MatricNumber.String,
 		})
 	}
 
@@ -322,6 +318,9 @@ func (s *AttendanceService) mark(
 		OsVersion:            pgtype.Text{String: osVersion, Valid: osVersion != ""},
 	})
 	if err != nil {
+		if errors.Is(err, repository.ErrDuplicateAttendance) {
+			return model.AttendanceResponse{}, err
+		}
 		return model.AttendanceResponse{}, errors.New("Failed to record attendance")
 	}
 

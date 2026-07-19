@@ -56,7 +56,7 @@ func (m *QRRotationManager) StartRotation(sessionID string, rotationSecs int32) 
 	// launch the goroutine
 	go func() {
 		// generate first token immediately
-		m.rotateToken(sessionUUID, sessionID)
+		m.rotateToken(sessionUUID, sessionID, rotationSecs)
 
 		// set up ticker for subsequent rotations
 		var ticker *time.Ticker = time.NewTicker(time.Duration(rotationSecs) * time.Second)
@@ -66,7 +66,7 @@ func (m *QRRotationManager) StartRotation(sessionID string, rotationSecs int32) 
 			select {
 			case <-ticker.C:
 				// ticker fired — rotate the token
-				m.rotateToken(sessionUUID, sessionID)
+				m.rotateToken(sessionUUID, sessionID, rotationSecs)
 
 			case <-stopChan:
 				// stop signal received — session closed, exit goroutine
@@ -88,7 +88,7 @@ func (m *QRRotationManager) StopRotation(sessionID string) {
 }
 
 // rotateToken invalidates old tokens and generates a new one
-func (m *QRRotationManager) rotateToken(sessionUUID pgtype.UUID, sessionID string) {
+func (m *QRRotationManager) rotateToken(sessionUUID pgtype.UUID, sessionID string, rotationSecs int32) {
 	var ctx context.Context = context.Background()
 
 	// invalidate all previous tokens for this session
@@ -99,7 +99,8 @@ func (m *QRRotationManager) rotateToken(sessionUUID pgtype.UUID, sessionID strin
 	var token string = generateQRToken(sessionID, now)
 
 	// store in DB with expiry = now + rotation window + small buffer
-	m.qrRepo.CreateQRToken(ctx, sessionUUID, token, now.Add(40*time.Second))
+	expiry := now.Add(time.Duration(rotationSecs)*time.Second + 10*time.Second)
+	m.qrRepo.CreateQRToken(ctx, sessionUUID, token, expiry)
 }
 
 // GetCurrentToken returns the latest valid token for a session

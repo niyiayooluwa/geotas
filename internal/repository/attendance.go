@@ -2,10 +2,14 @@ package repository
 
 import (
 	"context"
+	"errors"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/niyiayooluwa/geotas/internal/db"
 )
+
+var ErrDuplicateAttendance = errors.New("Attendance already marked")
 
 type AttendanceRepository struct {
 	queries *db.Queries
@@ -16,7 +20,15 @@ func NewAttendanceRepository(queries *db.Queries) *AttendanceRepository {
 }
 
 func (r *AttendanceRepository) CreateAttendanceRecord(ctx context.Context, params db.CreateAttendanceRecordParams) (db.AttendanceRecord, error) {
-	return r.queries.CreateAttendanceRecord(ctx, params)
+	record, err := r.queries.CreateAttendanceRecord(ctx, params)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return db.AttendanceRecord{}, ErrDuplicateAttendance
+		}
+		return db.AttendanceRecord{}, err
+	}
+	return record, nil
 }
 
 func (r *AttendanceRepository) GetAttendanceBySession(ctx context.Context, sessionID pgtype.UUID) ([]db.GetAttendanceBySessionRow, error) {

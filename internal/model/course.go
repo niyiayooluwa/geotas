@@ -27,7 +27,6 @@ type UpdateCourseSettingsRequest struct {
 // incoming request to join a course
 type JoinCourseRequest struct {
 	InviteCode          string `json:"invite_code"`
-	MatriculationNumber string `json:"matriculation_number"`
 }
 
 // what we send back after joining a course
@@ -36,7 +35,6 @@ type CourseMemberResponse struct {
 	CourseID            string `json:"course_id"`
 	UserID              string `json:"user_id"`
 	Role                string `json:"role"`
-	MatriculationNumber string `json:"matriculation_number"`
 	JoinedAt            string `json:"joined_at"`
 }
 

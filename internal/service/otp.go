@@ -44,7 +44,7 @@ func (m *OTPRotationManager) StartRotation(sessionID string, rotationSecs int32)
 	sessionUUID.Scan(sessionID)
 
 	go func() {
-		m.rotateToken(sessionUUID)
+		m.rotateToken(sessionUUID, rotationSecs)
 
 		ticker := time.NewTicker(time.Duration(rotationSecs) * time.Second)
 		defer ticker.Stop()
@@ -52,7 +52,7 @@ func (m *OTPRotationManager) StartRotation(sessionID string, rotationSecs int32)
 		for {
 			select {
 			case <-ticker.C:
-				m.rotateToken(sessionUUID)
+				m.rotateToken(sessionUUID, rotationSecs)
 			case <-stopChan:
 				return
 			}
@@ -70,7 +70,7 @@ func (m *OTPRotationManager) StopRotation(sessionID string) {
 	}
 }
 
-func (m *OTPRotationManager) rotateToken(sessionUUID pgtype.UUID) {
+func (m *OTPRotationManager) rotateToken(sessionUUID pgtype.UUID, rotationSecs int32) {
 	ctx := context.Background()
 
 	// Invalidate previous OTPs for this session
@@ -79,7 +79,8 @@ func (m *OTPRotationManager) rotateToken(sessionUUID pgtype.UUID) {
 	// Generate and save new OTP with some grace period buffer (15s)
 	now := time.Now()
 	code := generateOTP()
-	m.otpRepo.CreateOTP(ctx, sessionUUID, code, now.Add(75*time.Second)) // assuming default 60s rotation + 15s buffer
+	expiry := now.Add(time.Duration(rotationSecs)*time.Second + 15*time.Second)
+	m.otpRepo.CreateOTP(ctx, sessionUUID, code, expiry)
 }
 
 func (m *OTPRotationManager) GetCurrentToken(sessionID string) (model.OTPResponse, error) {

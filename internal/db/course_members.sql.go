@@ -16,20 +16,18 @@ INSERT INTO course_members (
     course_id,
     user_id,
     role,
-    matriculation_number,
     co_lecturer
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4
 )
-RETURNING id, course_id, user_id, role, matriculation_number, joined_at, co_lecturer
+RETURNING id, course_id, user_id, role, joined_at, co_lecturer
 `
 
 type AddCourseMemberParams struct {
-	CourseID            pgtype.UUID
-	UserID              pgtype.UUID
-	Role                string
-	MatriculationNumber pgtype.Text
-	CoLecturer          bool
+	CourseID   pgtype.UUID
+	UserID     pgtype.UUID
+	Role       string
+	CoLecturer bool
 }
 
 func (q *Queries) AddCourseMember(ctx context.Context, arg AddCourseMemberParams) (CourseMember, error) {
@@ -37,7 +35,6 @@ func (q *Queries) AddCourseMember(ctx context.Context, arg AddCourseMemberParams
 		arg.CourseID,
 		arg.UserID,
 		arg.Role,
-		arg.MatriculationNumber,
 		arg.CoLecturer,
 	)
 	var i CourseMember
@@ -46,7 +43,6 @@ func (q *Queries) AddCourseMember(ctx context.Context, arg AddCourseMemberParams
 		&i.CourseID,
 		&i.UserID,
 		&i.Role,
-		&i.MatriculationNumber,
 		&i.JoinedAt,
 		&i.CoLecturer,
 	)
@@ -54,7 +50,7 @@ func (q *Queries) AddCourseMember(ctx context.Context, arg AddCourseMemberParams
 }
 
 const getCourseMember = `-- name: GetCourseMember :one
-SELECT id, course_id, user_id, role, matriculation_number, joined_at, co_lecturer FROM course_members
+SELECT id, course_id, user_id, role, joined_at, co_lecturer FROM course_members
 WHERE course_id = $1 AND user_id = $2
 `
 
@@ -71,7 +67,6 @@ func (q *Queries) GetCourseMember(ctx context.Context, arg GetCourseMemberParams
 		&i.CourseID,
 		&i.UserID,
 		&i.Role,
-		&i.MatriculationNumber,
 		&i.JoinedAt,
 		&i.CoLecturer,
 	)
@@ -83,13 +78,14 @@ SELECT
     cm.course_id,
     cm.user_id,
     cm.role,
-    cm.matriculation_number,
     cm.co_lecturer,
     cm.joined_at,
     u.first_name,
     u.last_name,
     u.email,
-    u.avatar_url
+    u.avatar_url,
+    u.department,
+    u.matric_number
 FROM course_members cm
 JOIN users u ON cm.user_id = u.id
 WHERE cm.course_id = $1
@@ -97,16 +93,17 @@ ORDER BY u.first_name ASC, u.last_name ASC
 `
 
 type GetCourseMembersByCourseRow struct {
-	CourseID            pgtype.UUID
-	UserID              pgtype.UUID
-	Role                string
-	MatriculationNumber pgtype.Text
-	CoLecturer          bool
-	JoinedAt            pgtype.Timestamptz
-	FirstName           string
-	LastName            string
-	Email               string
-	AvatarUrl           pgtype.Text
+	CourseID     pgtype.UUID
+	UserID       pgtype.UUID
+	Role         string
+	CoLecturer   bool
+	JoinedAt     pgtype.Timestamptz
+	FirstName    string
+	LastName     string
+	Email        string
+	AvatarUrl    pgtype.Text
+	Department   string
+	MatricNumber pgtype.Text
 }
 
 func (q *Queries) GetCourseMembersByCourse(ctx context.Context, courseID pgtype.UUID) ([]GetCourseMembersByCourseRow, error) {
@@ -122,13 +119,14 @@ func (q *Queries) GetCourseMembersByCourse(ctx context.Context, courseID pgtype.
 			&i.CourseID,
 			&i.UserID,
 			&i.Role,
-			&i.MatriculationNumber,
 			&i.CoLecturer,
 			&i.JoinedAt,
 			&i.FirstName,
 			&i.LastName,
 			&i.Email,
 			&i.AvatarUrl,
+			&i.Department,
+			&i.MatricNumber,
 		); err != nil {
 			return nil, err
 		}

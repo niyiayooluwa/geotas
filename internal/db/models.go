@@ -82,13 +82,12 @@ type Course struct {
 }
 
 type CourseMember struct {
-	ID                  pgtype.UUID
-	CourseID            pgtype.UUID
-	UserID              pgtype.UUID
-	Role                string
-	MatriculationNumber pgtype.Text
-	JoinedAt            pgtype.Timestamptz
-	CoLecturer          bool
+	ID         pgtype.UUID
+	CourseID   pgtype.UUID
+	UserID     pgtype.UUID
+	Role       string
+	JoinedAt   pgtype.Timestamptz
+	CoLecturer bool
 }
 
 type Notification struct {
@@ -156,4 +155,6 @@ type User struct {
 	AvatarUrl    pgtype.Text
 	Role         UserRole
 	PasswordHash pgtype.Text
+	Department   string
+	MatricNumber pgtype.Text
 }

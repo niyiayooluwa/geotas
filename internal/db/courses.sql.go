@@ -138,13 +138,14 @@ SELECT
     c.confidence_threshold,
     c.created_at,
     cm.role,
-    cm.matriculation_number,
+    u.matric_number,
     COUNT(all_members.id) FILTER (WHERE all_members.role = 'student') AS student_count
 FROM course_members cm
 JOIN courses c ON cm.course_id = c.id
+JOIN users u ON cm.user_id = u.id
 LEFT JOIN course_members all_members ON all_members.course_id = c.id
 WHERE cm.user_id = $1
-GROUP BY c.id, c.owner_id, c.title, c.code, c.department, c.invite_code, c.confidence_threshold, c.created_at, cm.role, cm.matriculation_number
+GROUP BY c.id, c.owner_id, c.title, c.code, c.department, c.invite_code, c.confidence_threshold, c.created_at, cm.role, u.matric_number
 ORDER BY c.created_at DESC
 `
 
@@ -158,7 +159,7 @@ type GetCoursesByMemberRow struct {
 	ConfidenceThreshold pgtype.Numeric
 	CreatedAt           pgtype.Timestamptz
 	Role                string
-	MatriculationNumber pgtype.Text
+	MatricNumber        pgtype.Text
 	StudentCount        int64
 }
 
@@ -181,7 +182,7 @@ func (q *Queries) GetCoursesByMember(ctx context.Context, userID pgtype.UUID) ([
 			&i.ConfidenceThreshold,
 			&i.CreatedAt,
 			&i.Role,
-			&i.MatriculationNumber,
+			&i.MatricNumber,
 			&i.StudentCount,
 		); err != nil {
 			return nil, err

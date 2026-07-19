@@ -17,10 +17,11 @@ INSERT INTO users (
     password_hash,
     first_name,
     last_name,
-    role
+    role,
+    department
 ) VALUES (
-    $1, $2, $3, $4, $5
-) RETURNING id, email, first_name, last_name, created_at, google_id, avatar_url, role, password_hash
+    $1, $2, $3, $4, $5, $6
+) RETURNING id, email, first_name, last_name, created_at, google_id, avatar_url, role, password_hash, department, matric_number
 `
 
 type CreateUserParams struct {
@@ -29,6 +30,7 @@ type CreateUserParams struct {
 	FirstName    string
 	LastName     string
 	Role         UserRole
+	Department   string
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -38,6 +40,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.FirstName,
 		arg.LastName,
 		arg.Role,
+		arg.Department,
 	)
 	var i User
 	err := row.Scan(
@@ -50,12 +53,14 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.AvatarUrl,
 		&i.Role,
 		&i.PasswordHash,
+		&i.Department,
+		&i.MatricNumber,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, first_name, last_name, created_at, google_id, avatar_url, role, password_hash FROM users
+SELECT id, email, first_name, last_name, created_at, google_id, avatar_url, role, password_hash, department, matric_number FROM users
 WHERE email = $1
 `
 
@@ -72,12 +77,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.AvatarUrl,
 		&i.Role,
 		&i.PasswordHash,
+		&i.Department,
+		&i.MatricNumber,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, first_name, last_name, created_at, google_id, avatar_url, role, password_hash FROM users
+SELECT id, email, first_name, last_name, created_at, google_id, avatar_url, role, password_hash, department, matric_number FROM users
 WHERE id = $1
 `
 
@@ -94,6 +101,8 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.AvatarUrl,
 		&i.Role,
 		&i.PasswordHash,
+		&i.Department,
+		&i.MatricNumber,
 	)
 	return i, err
 }
@@ -104,24 +113,30 @@ INSERT INTO users (
     google_id,
     first_name,
     last_name,
-    avatar_url
+    avatar_url,
+    department,
+    matric_number
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6, $7
 )
 ON CONFLICT (email) DO UPDATE SET
     google_id  = COALESCE(users.google_id, EXCLUDED.google_id),
     first_name = COALESCE(NULLIF(users.first_name, ''), EXCLUDED.first_name),
     last_name  = COALESCE(NULLIF(users.last_name, ''), EXCLUDED.last_name),
-    avatar_url = COALESCE(users.avatar_url, EXCLUDED.avatar_url)
-RETURNING id, email, first_name, last_name, created_at, google_id, avatar_url, role, password_hash
+    avatar_url = COALESCE(users.avatar_url, EXCLUDED.avatar_url),
+    department = COALESCE(NULLIF(EXCLUDED.department, ''), users.department),
+    matric_number = COALESCE(EXCLUDED.matric_number, users.matric_number)
+RETURNING id, email, first_name, last_name, created_at, google_id, avatar_url, role, password_hash, department, matric_number
 `
 
 type UpsertGoogleUserParams struct {
-	Email     string
-	GoogleID  pgtype.Text
-	FirstName string
-	LastName  string
-	AvatarUrl pgtype.Text
+	Email        string
+	GoogleID     pgtype.Text
+	FirstName    string
+	LastName     string
+	AvatarUrl    pgtype.Text
+	Department   string
+	MatricNumber pgtype.Text
 }
 
 func (q *Queries) UpsertGoogleUser(ctx context.Context, arg UpsertGoogleUserParams) (User, error) {
@@ -131,6 +146,8 @@ func (q *Queries) UpsertGoogleUser(ctx context.Context, arg UpsertGoogleUserPara
 		arg.FirstName,
 		arg.LastName,
 		arg.AvatarUrl,
+		arg.Department,
+		arg.MatricNumber,
 	)
 	var i User
 	err := row.Scan(
@@ -143,6 +160,8 @@ func (q *Queries) UpsertGoogleUser(ctx context.Context, arg UpsertGoogleUserPara
 		&i.AvatarUrl,
 		&i.Role,
 		&i.PasswordHash,
+		&i.Department,
+		&i.MatricNumber,
 	)
 	return i, err
 }

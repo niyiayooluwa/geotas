@@ -4,10 +4,9 @@ INSERT INTO course_members (
     course_id,
     user_id,
     role,
-    matriculation_number,
     co_lecturer
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4
 )
 RETURNING *;
  
@@ -16,13 +15,14 @@ SELECT
     cm.course_id,
     cm.user_id,
     cm.role,
-    cm.matriculation_number,
     cm.co_lecturer,
     cm.joined_at,
     u.first_name,
     u.last_name,
     u.email,
-    u.avatar_url
+    u.avatar_url,
+    u.department,
+    u.matric_number
 FROM course_members cm
 JOIN users u ON cm.user_id = u.id
 WHERE cm.course_id = $1
