@@ -11,9 +11,11 @@ type LoginResponse struct {
 	ID        string `json:"id"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
-	Email     string `json:"email"`
-	AvatarURL string `json:"avatar_url,omitempty"`
-	Role      string `json:"role"`
+	Email        string  `json:"email"`
+	AvatarURL    string  `json:"avatar_url,omitempty"`
+	Department   string  `json:"department"`
+	MatricNumber *string `json:"matric_number,omitempty"`
+	Role         string  `json:"role"`
 }
 
 type UserResponse struct {

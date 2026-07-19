@@ -96,14 +96,21 @@ func (s *AuthService) GoogleLogin(ctx context.Context, req model.GoogleLoginRequ
 		return model.LoginResponse{}, errors.New("could not generate token")
 	}
 
+	var matricNumber *string
+	if user.MatricNumber.Valid {
+		matricNumber = &user.MatricNumber.String
+	}
+
 	return model.LoginResponse{
 		Token:     signedToken,
 		ID:        user.ID.String(),
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
-		Email:     user.Email,
-		AvatarURL: user.AvatarUrl.String,
-		Role:      string(user.Role),
+		Email:        user.Email,
+		AvatarURL:    user.AvatarUrl.String,
+		Department:   user.Department,
+		MatricNumber: matricNumber,
+		Role:         string(user.Role),
 	}, nil
 }
 
@@ -240,12 +247,19 @@ func (s *AuthService) LoginLecturer(ctx context.Context, req model.LecturerLogin
 		return model.LoginResponse{}, errors.New("could not generate token")
 	}
 
+	var matricNumber *string
+	if user.MatricNumber.Valid {
+		matricNumber = &user.MatricNumber.String
+	}
+
 	return model.LoginResponse{
 		Token:     signedToken,
 		ID:        user.ID.String(),
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
-		Email:     user.Email,
-		Role:      string(user.Role),
+		Email:        user.Email,
+		Department:   user.Department,
+		MatricNumber: matricNumber,
+		Role:         string(user.Role),
 	}, nil
 }
