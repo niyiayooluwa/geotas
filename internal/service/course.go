@@ -18,17 +18,20 @@ type CourseService struct {
 	courseRepo     *repository.CourseRepository
 	sessionRepo    *repository.SessionRepository
 	attendanceRepo *repository.AttendanceRepository
+	userRepo       *repository.UserRepository
 }
 
 func NewCourseService(
 	courseRepo *repository.CourseRepository,
 	sessionRepo *repository.SessionRepository,
 	attendanceRepo *repository.AttendanceRepository,
+	userRepo *repository.UserRepository,
 ) *CourseService {
 	return &CourseService{
 		courseRepo:     courseRepo,
 		sessionRepo:    sessionRepo,
 		attendanceRepo: attendanceRepo,
+		userRepo:       userRepo,
 	}
 }
 
@@ -114,6 +117,15 @@ func (s *CourseService) JoinCourse(ctx context.Context, userID string, userRole 
 	studentID, err := parseUUID(userID)
 	if err != nil {
 		return model.CourseMemberResponse{}, err
+	}
+
+	user, err := s.userRepo.GetUserByID(ctx, studentID)
+	if err != nil {
+		return model.CourseMemberResponse{}, errors.New("user not found")
+	}
+
+	if userRole != "lecturer" && !user.MatricNumber.Valid {
+		return model.CourseMemberResponse{}, errors.New("403 Forbidden: You must add your matriculation number to your profile before joining a course")
 	}
 
 	if course.OwnerID == studentID {

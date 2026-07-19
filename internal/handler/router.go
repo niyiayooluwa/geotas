@@ -38,9 +38,10 @@ func NewRouter(queries *db.Queries, authService *service.AuthService) *chi.Mux {
 	var scheduleRepo *repository.ScheduleRepository = repository.NewScheduleRepository(queries)
 
 	// wire up services
+	var userRepo *repository.UserRepository = repository.NewUserRepository(queries)
 	var notifService *service.NotificationService = service.NewNotificationService(notifRepo)
 	var scheduleService *service.ScheduleService = service.NewScheduleService(scheduleRepo, courseRepo, notifService)
-	var courseService *service.CourseService = service.NewCourseService(courseRepo, sessionRepo, attendanceRepo)
+	var courseService *service.CourseService = service.NewCourseService(courseRepo, sessionRepo, attendanceRepo, userRepo)
 	var qrManager *service.QRRotationManager = service.NewQRRotationManager(qrRepo)
 	var otpManager *service.OTPRotationManager = service.NewOTPRotationManager(otpRepo)
 	var sessionService *service.SessionService = service.NewSessionService(sessionRepo, courseRepo, qrManager, otpManager, notifService)
