@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS courses (
     title TEXT NOT NULL,
     code TEXT NOT NULL UNIQUE,
     department TEXT,
+    invite_code TEXT UNIQUE,
+    confidence_threshold NUMERIC(3,2) NOT NULL DEFAULT 0.65,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

@@ -99,7 +99,7 @@ func (s *CourseService) CreateCourse(ctx context.Context, userID string, req mod
 		Code:                course.Code,
 		Department:          course.Department.String,
 		InviteCode:          course.InviteCode,
-		ConfidenceThreshold: 0.75, // Default from DB
+		ConfidenceThreshold: 0.65, // Default from DB
 		CreatedAt:           course.CreatedAt.Time.Format("2006-01-02 15:04:05"),
 	}, nil
 }
